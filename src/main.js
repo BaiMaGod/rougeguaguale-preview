@@ -22,7 +22,7 @@ function newTicket() {
   state.scoutMode = false;
   state.extraMode = false;
   state.committed = false;
-  addLog(`第 ${state.ticketNumber} 张票已印好。先看线索，再决定刮哪里。`);
+  addLog(`第 ${state.ticketNumber} 张票开始：直接点银色格刮开，不用先读规则。`);
   render();
 }
 
@@ -166,9 +166,21 @@ function render() {
   $('#scoutBtn').classList.toggle('active', state.scoutMode);
   $('#scoutBtn').disabled = state.ticket.scoutRemaining <= 0 || state.ticket.settled || state.committed;
   $('#extraBtn').classList.toggle('active', state.extraMode);
-  $('#extraBtn').disabled = state.ticket.regularRemaining > 0 || state.ticket.extraRemaining <= 0 || state.ticket.settled || state.committed;
+  const canExtra = state.ticket.regularRemaining <= 0 && state.ticket.extraRemaining > 0 && !state.ticket.settled && !state.committed;
+  $('#extraBtn').classList.toggle('hidden', !canExtra);
+  $('#extraBtn').disabled = !canExtra;
   $('#settleBtn').disabled = state.ticket.activatedOrder.length === 0 || state.ticket.settled || state.committed;
   $('#nextBtn').classList.toggle('hidden', !state.committed || state.bank >= target || state.ticketNumber >= 3);
+
+  const activeCount = state.ticket.activatedOrder.length;
+  const liveScore = calculateScore(state.ticket).score;
+  let coach = '点任意一个银色格，先刮开第 1 格。';
+  if (state.committed) coach = '这一张已经结算，点“下一张票”继续。';
+  else if (state.scoutMode) coach = '现在选择一个银色格偷看：不会消耗刮开次数。';
+  else if (state.extraMode) coach = '选择一个格进行风险刮开：压力会先 +1。';
+  else if (activeCount > 0 && state.ticket.regularRemaining > 0) coach = `继续刮吧：还剩 ${state.ticket.regularRemaining} 次免费刮开；现在拿走可得 ${liveScore} 分。`;
+  else if (state.ticket.regularRemaining <= 0 && !state.ticket.settled) coach = `8 次免费刮完了：拿走 ${liveScore} 分，或者冒险再刮。`;
+  $('#coachText').textContent = coach;
 
   renderBoard();
   renderClues();
