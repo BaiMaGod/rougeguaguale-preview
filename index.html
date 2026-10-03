@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#15243a" />
+  <title>刮出奇迹：好运工坊 · 原型</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">PROJECT FOIL · PLAYABLE PROTOTYPE</div>
+        <h1>刮出奇迹：好运工坊</h1>
+      </div>
+      <div class="top-stats">
+        <div><span>灯箱</span><strong><i id="bank">0</i> / <i id="target">280</i></strong></div>
+        <div><span>票数</span><strong id="ticketCount">1/3</strong></div>
+        <button id="restartBtn" class="ghost">新旅程</button>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <aside class="panel left-panel">
+        <div class="panel-title">本票线索</div>
+        <div id="clues" class="clues"></div>
+        <div class="rule-card">
+          <b>街角经典 T01</b>
+          <p>激活至少 6 格：基础分 +10。</p>
+        </div>
+        <div class="rule-card">
+          <b>灯灯 C01</b>
+          <p>每票第一枚自然星星：基础分 +8。</p>
+        </div>
+        <div class="seed">种子 <code id="seed"></code></div>
+      </aside>
+
+      <section class="ticket-wrap">
+        <div class="ticket-head">
+          <div>
+            <span class="ticket-kicker">LUCK WORKSHOP</span>
+            <h2>街角经典</h2>
+          </div>
+          <div class="foil-mark">✦ 4 × 4 ✦</div>
+        </div>
+        <div id="board" class="board" aria-label="4乘4刮刮乐票面"></div>
+        <div class="ticket-foot">读取线索 → 显影 → 刮开 → 收手，随机给题目，选择决定结果。</div>
+      </section>
+
+      <aside class="panel right-panel">
+        <div class="meters">
+          <div class="meter"><span>常规刮力</span><strong id="regular">8</strong></div>
+          <div class="meter"><span>追加次数</span><strong id="extra">2</strong></div>
+          <div class="meter"><span>显影</span><strong id="scout">1</strong></div>
+        </div>
+
+        <div class="pressure-card">
+          <div><span>印刷压力</span><b id="pressure">0/3</b></div>
+          <div id="pressureBar" class="pressure-bar"><i></i></div>
+          <small>压力达到 3 立刻事故，仅结算 40% 基础分 B。</small>
+        </div>
+
+        <div class="preview-card">
+          <span>现在收手</span>
+          <strong id="preview">0</strong>
+          <div class="formula"><b id="baseScore">0</b> <span>×</span> <b id="multiplier">×1.00</b></div>
+          <div id="breakdown" class="breakdown"></div>
+        </div>
+
+        <div class="actions">
+          <button id="scoutBtn">显影一格</button>
+          <button id="extraBtn" class="danger">冒刮一次</button>
+          <button id="settleBtn" class="primary">收手结算</button>
+          <button id="nextBtn" class="hidden">印下一张票</button>
+        </div>
+      </aside>
+    </section>
+
+    <section class="log-panel">
+      <div class="panel-title">操作记录</div>
+      <div id="log" class="log"></div>
+    </section>
+  </main>
+  <div id="modal" class="modal hidden"></div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
