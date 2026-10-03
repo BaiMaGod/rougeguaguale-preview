@@ -23,17 +23,19 @@
 
     <section class="workspace">
       <aside class="panel left-panel">
-        <div class="panel-title">本票线索</div>
+        <div class="panel-title">怎么玩</div>
+        <div class="howto">
+          <div><b>1</b><span><strong>刮银色格</strong><small>每张票有 8 次免费刮开。</small></span></div>
+          <div><b>2</b><span><strong>凑组合拿高分</strong><small>3 个相同符号、整行或整列都有奖励。</small></span></div>
+          <div><b>3</b><span><strong>决定什么时候拿分</strong><small>免费次数用完后可以拿走分数，也可以冒险再刮。</small></span></div>
+        </div>
+        <div class="panel-title clue-title">这一票的行线索</div>
         <div id="clues" class="clues"></div>
-        <div class="rule-card">
-          <b>街角经典 T01</b>
-          <p>激活至少 6 格：基础分 +10。</p>
+        <div class="combo-guide">
+          <span>★ 星星：高分</span><span>♬ 铃铛：加倍率</span>
+          <span>❧ 叶片：降压力</span><span>● 墨团：加压力</span>
         </div>
-        <div class="rule-card">
-          <b>灯灯 C01</b>
-          <p>每票第一枚自然星星：基础分 +8。</p>
-        </div>
-        <div class="seed">种子 <code id="seed"></code></div>
+        <div class="seed hidden">种子 <code id="seed"></code></div>
       </aside>
 
       <section class="ticket-wrap">
@@ -44,35 +46,42 @@
           </div>
           <div class="foil-mark">✦ 4 × 4 ✦</div>
         </div>
+        <div class="goal-strip">
+          <strong>这轮目标：3 张票累计 280 分</strong>
+          <span id="coachText">点任意一个银色格，先刮开第 1 格。</span>
+        </div>
         <div id="board" class="board" aria-label="4乘4刮刮乐票面"></div>
-        <div class="ticket-foot">读取线索 → 显影 → 刮开 → 收手，随机给题目，选择决定结果。</div>
+        <div class="ticket-foot">3 个相同符号：+20 基础分和倍率　·　刮满整行/整列：+24　·　随时可以拿走当前分数</div>
       </section>
 
       <aside class="panel right-panel">
         <div class="meters">
-          <div class="meter"><span>常规刮力</span><strong id="regular">8</strong></div>
-          <div class="meter"><span>追加次数</span><strong id="extra">2</strong></div>
-          <div class="meter"><span>显影</span><strong id="scout">1</strong></div>
-        </div>
-
-        <div class="pressure-card">
-          <div><span>印刷压力</span><b id="pressure">0/3</b></div>
-          <div id="pressureBar" class="pressure-bar"><i></i></div>
-          <small>压力达到 3 立刻事故，仅结算 40% 基础分 B。</small>
+          <div class="meter"><span>免费刮开</span><strong id="regular">8</strong></div>
+          <div class="meter"><span>风险刮开</span><strong id="extra">2</strong></div>
+          <div class="meter"><span>免费偷看</span><strong id="scout">1</strong></div>
         </div>
 
         <div class="preview-card">
-          <span>现在收手</span>
-          <strong id="preview">0</strong>
-          <div class="formula"><b id="baseScore">0</b> <span>×</span> <b id="multiplier">×1.00</b></div>
-          <div id="breakdown" class="breakdown"></div>
+          <span>现在拿走</span>
+          <strong><i id="preview">0</i><em> 分</em></strong>
+          <div class="formula">基础 <b id="baseScore">0</b> × 倍率 <b id="multiplier">1.00</b></div>
+          <details class="score-details">
+            <summary>查看计分细节</summary>
+            <div id="breakdown" class="breakdown"></div>
+          </details>
+        </div>
+
+        <div class="pressure-card">
+          <div><span>风险压力</span><b id="pressure">0/3</b></div>
+          <div id="pressureBar" class="pressure-bar"><i></i></div>
+          <small>只有“风险刮开”和墨团会增加压力。到 3 就爆票，只拿基础分的 40%。</small>
         </div>
 
         <div class="actions">
-          <button id="scoutBtn">显影一格</button>
-          <button id="extraBtn" class="danger">冒刮一次</button>
-          <button id="settleBtn" class="primary">收手结算</button>
-          <button id="nextBtn" class="hidden">印下一张票</button>
+          <button id="scoutBtn">👁 偷看一格（免费）</button>
+          <button id="extraBtn" class="danger hidden">⚠ 再刮一格（压力 +1）</button>
+          <button id="settleBtn" class="primary">💰 拿走当前分数</button>
+          <button id="nextBtn" class="hidden">下一张票 →</button>
         </div>
       </aside>
     </section>
