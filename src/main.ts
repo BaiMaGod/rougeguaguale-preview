@@ -14,6 +14,28 @@ const urlSeed=new URLSearchParams(location.search).get('seed');
 const makeSeed=()=>urlSeed || 'foil-'+Math.floor(Date.now()/1000);
 const state:RunState={seed:makeSeed(),bank:0,round:0,ticketIndex:1,
   ticket:createTicket('initial'),committed:false,riskArmed:false,done:false};
+interface HitZone {x:number;y:number;w:number;h:number;run:()=>void;}
+let hitZones:HitZone[]=[];
+let pressedZone:HitZone|null=null;
+function findZone(e:PointerEvent):HitZone|null{
+  const b=root.getBoundingClientRect();
+  if(b.width<=0||b.height<=0)return null;
+  const x=(e.clientX-b.left)*W/b.width,y=(e.clientY-b.top)*H/b.height;
+  for(let i=hitZones.length-1;i>=0;i--){
+    const z=hitZones[i];
+    if(x>=z.x&&x<=z.x+z.w&&y>=z.y&&y<=z.y+z.h)return z;
+  }
+  return null;
+}
+function attachPointerButtons():void{
+  document.addEventListener('pointerdown',(event)=>{pressedZone=findZone(event);},true);
+  document.addEventListener('pointerup',(event)=>{
+    const released=findZone(event);
+    if(released && released===pressedZone){pressedZone=null;released.run();}
+    else pressedZone=null;
+  },true);
+  document.addEventListener('pointercancel',()=>{pressedZone=null;},true);
+}
 let scene:any;
 let message='用手指在银色格子上来回擦，刮开超过一半即可揭晓。';
 let toastText='',toastSerial=0;
@@ -56,7 +78,7 @@ function btn(parent:any,x:number,y:number,w:number,h:number,title:string,fill:st
   hit.hit.drawRect(0,0,w,h,'#ffffff');
   button.hitArea=hit;
   txt(button,0,7,title,27,disabled?'#a6adba':'#182238',w,'center',true);
-  if(!disabled) button.on(Laya.Event.CLICK,null,onClick);
+  if(!disabled) hitZones.push({x,y,w,h,run:onClick});
 }
 function flash(index:number,symbol:SymbolKey):void{
   const col=index%4,row=Math.floor(index/4);
@@ -130,7 +152,7 @@ function next():void{
   state.ticketIndex++;newTicket();
 }
 function draw():void{
-  scene.removeChildren();foil.clear();
+  hitZones=[];scene.removeChildren();foil.clear();
   scene.graphics.clear();scene.graphics.drawRect(0,0,W,H,C.bg);
   // Warm floating decoration outside play surface.
   const aura=new Laya.Sprite();aura.graphics.drawCircle(0,0,260,'#202c4a');
@@ -184,7 +206,7 @@ function draw():void{
   foil.setEnabled(!state.committed&&(state.ticket.regularRemaining>0||state.riskArmed));
 }
 async function boot():Promise<void>{
-  sizeToWindow();window.addEventListener('resize',sizeToWindow);
+  sizeToWindow();window.addEventListener('resize',sizeToWindow);attachPointerButtons();
   if(typeof Laya==='undefined')throw new Error('LayaAir 3.4 引擎未加载，请检查 libs 文件。');
   await Laya.init(W,H);
   Laya.stage.scaleMode=Laya.Stage.SCALE_NOSCALE;
