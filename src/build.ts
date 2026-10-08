@@ -13,7 +13,18 @@ export const STAMPS:readonly StampDef[]=[
  {id:'R33',name:'宝石底座',description:'每枚已刮出的宝石基础分 +6',price:6,tag:'宝石'},
  {id:'R08',name:'满堂星火',description:'本票至少3组三响时 X×2.00',price:16,tag:'三响'},
  {id:'R16',name:'经纬印刷机',description:'至少一条横线和一条竖线时 X×1.80',price:16,tag:'几何'},
- {id:'R23',name:'留白的价值',description:'正常收手尚余2次常规刮力时 X×1.40',price:10,tag:'早收手'}
+ {id:'R23',name:'留白的价值',description:'正常收手尚余2次常规刮力时 X×1.40',price:10,tag:'早收手'},
+ {id:'R03',name:'双份油墨',description:'每种恰好激活2枚的自然图案 B+8',price:6,tag:'同色'},
+ {id:'R04',name:'合唱铃',description:'至少激活3枚铃铛时 M+0.40',price:6,tag:'同色'},
+ {id:'R11',name:'润滑油',description:'相邻已激活齿轮每枚 B+8',price:6,tag:'几何'},
+ {id:'R17',name:'小放大镜',description:'开票时免费显影+1',price:6,tag:'显影'},
+ {id:'R19',name:'空白边',description:'剩余常规刮力每次 B+8，最多24',price:6,tag:'早收手'},
+ {id:'R20',name:'月牙夹',description:'7格内收手 M+0.25，并解锁月相票',price:6,tag:'早收手'},
+ {id:'R25',name:'排气阀',description:'本票首个墨团不会增加压力',price:6,tag:'控压'},
+ {id:'R27',name:'耐热铜币',description:'每次追加刮开的倍率代价减0.10',price:6,tag:'控压'},
+ {id:'R28',name:'警戒红线',description:'正常结算压力恰为2时 M+0.40',price:6,tag:'控压'},
+ {id:'R44',name:'零钱夹',description:'开票持有至少10铜券则基础分+15',price:6,tag:'经济'},
+ {id:'R45',name:'五色封条',description:'激活5类自然符号时 M+0.50',price:10,tag:'杂彩'}
 ];
 export interface Build {
   plate:SymbolKey[];levels:Record<BasicSymbol,number>;

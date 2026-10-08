@@ -1,7 +1,8 @@
 import {SYMBOLS, ROUND_TARGETS, createTicket, shuffledPlate, scoutCell, activateCell, calculateScore, settleTicket, rowClues, type Ticket, type SymbolKey} from './rules.js';
 import {createBuild, rewardOptions, applyReward, grantRoundCopper, skipReward, shopOffer, buyStamp, buyUpgrade, availableUpgrades, legalReprint, getStamp, upgradePrice, buildSummary, type BasicSymbol, type Build, type RewardOption} from './build.js';
 import {ScratchLayer} from './scratch.js';
-import {applyTicketChoice,bossForRound,BOSSES,ticketCandidates,ticketDefinition,type TicketId} from './tickets.js';
+import {applyTicketChoice,swapTicket,bossForRound,BOSSES,ticketCandidates,ticketDefinition,type TicketId} from './tickets.js';
+import {eventForRound,eventAvailable,eventNeedsTarget,applyEvent,type EventChoice} from './events.js';
 import {itemDef,itemOffer,buyItem,useItem,canUseItem,isTargetedItem,type ItemTarget,type ItemId} from './items.js';
 
 declare const Laya: any;
@@ -12,7 +13,7 @@ const root=document.getElementById('game-root') as HTMLDivElement;
 const foilRoot=document.getElementById('scratch-root') as HTMLDivElement;
 const error=document.getElementById('load-error') as HTMLElement;
 const foil=new ScratchLayer(foilRoot);
-interface RunState {seed:string;bank:number;round:number;ticketIndex:number;ticket:Ticket;committed:boolean;riskArmed:boolean;done:boolean;build:Build;phase:'ticket'|'ticket-choice'|'reward'|'shop'|'ended';offers:string[];itemPurchased?:boolean;}
+interface RunState {seed:string;bank:number;round:number;ticketIndex:number;ticket:Ticket;committed:boolean;riskArmed:boolean;done:boolean;build:Build;phase:'ticket'|'ticket-choice'|'reward'|'event'|'shop'|'ended';offers:string[];itemPurchased?:boolean;}
 const urlSeed=new URLSearchParams(location.search).get('seed');
 const makeSeed=()=>urlSeed || 'foil-'+Math.floor(Date.now()/1000);
 const state:RunState={seed:makeSeed(),bank:0,round:0,ticketIndex:1,
@@ -21,7 +22,7 @@ interface HitZone {x:number;y:number;w:number;h:number;run:()=>void;}
 let hitZones:HitZone[]=[];
 let pressedZone:HitZone|null=null;
 function findZone(e:PointerEvent):HitZone|null{
-  if(state.phase!=='ticket'||toolsOpen)return null;
+  if(state.phase!=='ticket'||toolsOpen||swapOpen)return null;
   const b=root.getBoundingClientRect();
   if(b.width<=0||b.height<=0)return null;
   const x=(e.clientX-b.left)*W/b.width,y=(e.clientY-b.top)*H/b.height;
@@ -97,7 +98,7 @@ function flash(index:number,symbol:SymbolKey):void{
 }
 function announce(text:string):void{message=text;toastText=text;toastSerial++;draw();}
 function newTicket():void{
-  toolsOpen=false;selectedItemIndex=null;selectedTarget={};
+  toolsOpen=false;swapOpen=false;selectedItemIndex=null;selectedTarget={};
   foil.clear();
   const ticketSeed=state.seed+':r'+(state.round+1)+':t'+state.ticketIndex;
   state.ticket=createTicket(ticketSeed,shuffledPlate(ticketSeed,state.build.plate));
@@ -169,6 +170,10 @@ function next():void{
 }
 
 let toolsOpen=false;
+let swapOpen=false;
+let swapSelection:number[]=[];
+let selectedEventChoice:EventChoice|null=null;
+let selectedEventTarget:BasicSymbol|null=null;
 let selectedItemIndex:number|null=null;
 let selectedTarget:ItemTarget={};
 const workshop=document.createElement('div');
@@ -195,7 +200,7 @@ function loadRun():boolean{
     if(b.version!==4||!b.build||!b.ticket||!Array.isArray(b.build.plate)||b.build.plate.length!==16)return false;
     if(!Array.isArray(b.ticket.cells)||b.ticket.cells.length!==16||!Array.isArray(b.build.stamps))return false;
     if(!Array.isArray(b.build.items))b.build.items=[];
-    if(!['ticket','ticket-choice','reward','shop','ended'].includes(b.phase)||b.round<0||b.round>8||b.ticketIndex<1||b.ticketIndex>3)return false;
+    if(!['ticket','ticket-choice','reward','event','shop','ended'].includes(b.phase)||b.round<0||b.round>8||b.ticketIndex<1||b.ticketIndex>3)return false;
     if(urlSeed&&urlSeed!==b.seed)return false;
     Object.assign(state,{seed:b.seed,round:b.round,bank:b.bank,ticketIndex:b.ticketIndex,
       ticket:b.ticket,committed:b.committed,riskArmed:b.riskArmed,done:b.done,
@@ -210,14 +215,24 @@ function actionButton(title:string,action:string,disabled=false,secondary=false)
   return '<button class="work-btn '+(secondary?'work-secondary':'')+'" data-action="'+action+'"'+(disabled?' disabled':'')+'>'+title+'</button>';
 }
 function renderWorkshop():void{
-  if(state.phase==='ticket'&&!toolsOpen){
+  if(state.phase==='ticket'&&!toolsOpen&&!swapOpen){
     workshop.classList.remove('open');workshop.replaceChildren();return;
   }
   workshop.classList.add('open');
   const b=state.build;
   const header='<div class="work-top"><b>✦ 好运工坊</b><span>第 '+(state.round+1)+'/9 轮 · 🪙 '+b.copper+' 铜券</span></div>';
   let content='';
-  if(state.phase==='ticket'&&toolsOpen){
+  if(state.phase==='ticket'&&swapOpen){
+    const cells=state.ticket.cells.map((cell,i)=>{
+      const legal=cell.state==='active'&&cell.symbol!=='ink';
+      return '<button class="work-cell '+(swapSelection.includes(i)?'selected':'')+'"'+(!legal?' disabled':'')+
+        ' data-action="swap-cell-'+i+'">'+String.fromCharCode(65+i%4)+(Math.floor(i/4)+1)+' · '+
+        (legal?SYMBOLS[cell.symbol].name:'不可交换')+'</button>';
+    }).join('');
+    content='<h2>↔ 折返票 · 免费换位</h2><p>选择两个已刮开的自然符号格，交换后只改变格子内容，不额外刮开、不改变激活顺序。本票仅限一次。</p>'+
+      '<div class="work-grid">'+cells+'</div><p>已选 '+swapSelection.length+'/2</p>'+
+      actionButton('确认换位','swap-confirm',swapSelection.length!==2)+actionButton('返回彩票','swap-close',false,true);
+  }else if(state.phase==='ticket'&&toolsOpen){
     const bag=b.items??[];
     let body='';
     const pending=selectedItemIndex===null?undefined:bag[selectedItemIndex];
@@ -267,7 +282,7 @@ function renderWorkshop():void{
     content=body;
   }else if(state.phase==='ticket-choice'){
     const boss=bossForRound(state.round,state.seed);
-    const candidates=ticketCandidates(state.seed,state.round,state.ticketIndex,b.plate);
+    const candidates=ticketCandidates(state.seed,state.round,state.ticketIndex,b.plate,b.stamps);
     const bossText=boss?'<div class="work-boss"><b>⚠ 首领 '+BOSSES[boss].name+'</b><p>'+BOSSES[boss].effect+'</p></div>':'';
     const cards=candidates.map((d,i)=>
       '<div class="work-card"><div class="work-card-title">'+(i+1)+' · '+d.name+
@@ -276,6 +291,30 @@ function renderWorkshop():void{
     content='<h2>选择本张刮刮乐</h2><p>第 '+(state.round+1)+' 轮 · 第 '+state.ticketIndex+'/3 张 · 三种票共用同一套16枚印版，不会暗中换中奖池。</p>'+
       bossText+'<div class="work-cards">'+cards+'</div>'+
       '<p>选票后立即锁定布局；不同票型的刮力、压力和计分各不相同。</p>';
+  }else if(state.phase==='event'){
+    const event=eventForRound(state.round,state.seed);
+    if(!event)throw new Error('找不到当前轮次的工坊事件');
+    if(selectedEventChoice&&eventNeedsTarget(event.id,selectedEventChoice)){
+      const controls=(Object.keys(b.levels) as BasicSymbol[]).map(type=>
+        actionButton(SYMBOLS[type].icon+' '+SYMBOLS[type].name+
+          ' Lv.'+b.levels[type],'event-target-'+type,
+          !eventAvailable(event.id,selectedEventChoice!,b,type),selectedEventTarget!==type)).join('');
+      content='<h2>'+event.name+' · 选择目标</h2><p>'+event[selectedEventChoice==='A'?'a':'b']+
+        '</p><div class="work-options">'+controls+'</div>'+
+        actionButton('确定本次选择','event-confirm',
+          !selectedEventTarget||!eventAvailable(event.id,selectedEventChoice,b,selectedEventTarget))+
+        actionButton('返回事件','event-back',false,true);
+    }else{
+      content='<h2>✦ 偶遇：'+event.name+'</h2><p>第 '+(state.round+1)+
+        ' 轮过关后的特殊事件。本次两种处理只能选一种，或者直接离开。</p>'+
+        '<div class="work-cards"><div class="work-card"><div class="work-card-title">选择 A</div><p>'+event.a+'</p>'+
+        actionButton(eventNeedsTarget(event.id,'A')?'选择目标后执行 A':'执行选择 A','event-a',
+          !eventNeedsTarget(event.id,'A')&&!eventAvailable(event.id,'A',b))+'</div>'+
+        '<div class="work-card"><div class="work-card-title">选择 B</div><p>'+event.b+'</p>'+
+        actionButton(eventNeedsTarget(event.id,'B')?'选择目标后执行 B':'执行选择 B','event-b',
+          !eventNeedsTarget(event.id,'B')&&!eventAvailable(event.id,'B',b))+'</div></div>'+
+        actionButton('不参与，离开事件','event-leave',false,true);
+    }
   }else if(state.phase==='reward'){
     const options=rewardOptions(b,state.round,state.seed+':reward:'+state.round);
     if(inReprint){
@@ -336,10 +375,20 @@ function renderWorkshop():void{
     el.addEventListener('click',()=>handleWorkshopAction(el.dataset.action||''));
   });
 }
+function enterPostReward():void{
+  selectedEventChoice=null;selectedEventTarget=null;
+  state.phase=eventForRound(state.round,state.seed)?'event':'shop';
+}
+function finishEvent():void{
+  state.phase='shop';selectedEventChoice=null;selectedEventTarget=null;
+  state.offers=shopOffer(state.build,state.round,state.seed).stampIds;
+  state.itemPurchased=false;
+  draw();renderWorkshop();saveRun();
+}
 function rewardChosen(option:RewardOption,source:number[]=[],target?:BasicSymbol):void{
   try{
     state.build=applyReward(state.build,option,source,target);
-    state.phase='shop';inReprint=false;reprintSelection=[];
+    enterPostReward();inReprint=false;reprintSelection=[];
     state.offers=shopOffer(state.build,state.round,state.seed).stampIds;
     state.itemPurchased=false;
     message='改造完成！可以在商店继续强化。';
@@ -353,6 +402,49 @@ function showWorkshopError(e:unknown):void{
 function handleWorkshopAction(action:string):void{
   const b=state.build;
   if(action==='run-reset'){inReprint=false;reset();return;}
+  if(state.phase==='ticket'&&swapOpen){
+    if(action==='swap-close'){swapOpen=false;swapSelection=[];draw();renderWorkshop();return;}
+    if(action.startsWith('swap-cell-')){
+      const i=Number(action.slice(10));
+      if(!Number.isInteger(i)||i<0||i>=16)return;
+      if(swapSelection.includes(i))swapSelection=swapSelection.filter(x=>x!==i);
+      else if(swapSelection.length<2)swapSelection.push(i);
+      renderWorkshop();return;
+    }
+    if(action==='swap-confirm'){
+      try{
+        if(swapSelection.length!==2)return;
+        state.ticket=swapTicket(state.ticket,swapSelection[0],swapSelection[1]);
+        swapOpen=false;swapSelection=[];message='折返换位成功，本票的机会已用完。';
+        draw();renderWorkshop();saveRun();
+      }catch(e){showWorkshopError(e);}
+      return;
+    }
+    return;
+  }
+  if(state.phase==='event'){
+    const event=eventForRound(state.round,state.seed);
+    if(!event)return;
+    if(action==='event-leave'){finishEvent();return;}
+    if(action==='event-back'){selectedEventChoice=null;selectedEventTarget=null;renderWorkshop();return;}
+    if(action.startsWith('event-target-')){selectedEventTarget=action.slice(13) as BasicSymbol;renderWorkshop();return;}
+    if(action==='event-confirm'){
+      if(!selectedEventChoice||!selectedEventTarget)return;
+      try{state.build=applyEvent(b,event.id,selectedEventChoice,selectedEventTarget);finishEvent();}
+      catch(e){showWorkshopError(e);}
+      return;
+    }
+    if(action==='event-a'||action==='event-b'){
+      const c:EventChoice=action==='event-a'?'A':'B';
+      if(eventNeedsTarget(event.id,c)){
+        selectedEventChoice=c;selectedEventTarget=null;renderWorkshop();return;
+      }
+      try{state.build=applyEvent(b,event.id,c);finishEvent();}
+      catch(e){showWorkshopError(e);}
+      return;
+    }
+    return;
+  }
   if(state.phase==='ticket'&&toolsOpen){
     if(action==='tool-close'){
       toolsOpen=false;selectedItemIndex=null;selectedTarget={};
@@ -403,6 +495,8 @@ function handleWorkshopAction(action:string):void{
     if(!candidates.some(candidate=>candidate.id===id))return;
     try{
       state.ticket=applyTicketChoice(state.ticket,id,bossForRound(state.round,state.seed),state.ticketIndex===1);
+      if(b.stamps.includes('R17'))state.ticket.scoutRemaining+=1;
+      state.ticket.openCopper=b.copper;
       state.phase='ticket';
       message='已选 '+ticketDefinition(id).name+'：'+ticketDefinition(id).effect;
       draw();renderWorkshop();saveRun();
@@ -412,7 +506,7 @@ function handleWorkshopAction(action:string):void{
   if(state.phase==='reward'){
     const options=rewardOptions(b,state.round,state.seed+':reward:'+state.round);
     if(action==='reward-skip'){
-      state.build=skipReward(b);state.phase='shop';inReprint=false;
+      state.build=skipReward(b);enterPostReward();inReprint=false;
       state.offers=shopOffer(state.build,state.round,state.seed).stampIds;
       state.itemPurchased=false;
       draw();renderWorkshop();saveRun();return;
@@ -510,22 +604,28 @@ function draw():void{
   btn(scene,385,1170,317,68,canHint?'👁 免费偷看 1 格':'偷看已用完',
     '#83d8d3',hint,!canHint);
   if(state.committed){
-    btn(scene,48,1251,654,66,state.done?'重新挑战':state.phase==='reward'?'领取轮后奖励':state.phase==='shop'?'工坊商店':'下一张票 →','#88e5b3',state.phase==='ticket'||state.phase==='ended'?next:renderWorkshop);
+    btn(scene,48,1251,654,66,state.done?'重新挑战':state.phase==='reward'?'领取轮后奖励':state.phase==='shop'?'工坊商店':state.phase==='event'?'工坊事件':'下一张票 →','#88e5b3',state.phase==='ticket'||state.phase==='ended'?next:renderWorkshop);
   }else{
     const count=(state.build.items??[]).length;
-    btn(scene,48,1251,317,66,'🧰 工具包 '+count+'/2','#9dccdc',()=>{
+    const canSwap=state.ticket.ticketType==='T09'&&!state.ticket.freeSwapUsed&&state.phase==='ticket';
+    const toolX=canSwap?265:48,toolW=canSwap?210:317;
+    if(canSwap)btn(scene,48,1251,201,66,'↔ 免费换位','#f6c783',()=>{
+      swapOpen=true;swapSelection=[];draw();renderWorkshop();
+    },state.ticket.cells.filter(c=>c.state==='active'&&c.symbol!=='ink').length<2);
+    btn(scene,toolX,1251,toolW,66,'🧰 工具 '+count+'/2','#9dccdc',()=>{
       toolsOpen=true;draw();renderWorkshop();
     });
+    const rightX=canSwap?490:385,rightW=canSwap?212:317;
     if(state.ticket.regularRemaining===0 && state.ticket.extraRemaining>0){
-      btn(scene,385,1251,317,66,state.riskArmed?'已开启冒险刮开':'⚠ 冒险再刮',
+      btn(scene,rightX,1251,rightW,66,state.riskArmed?'已开启冒险':'⚠ 冒险再刮',
         '#f0a8a2',()=>{state.riskArmed=true;message='风险已开启！继续刮开一个银色格。';draw();saveRun();});
     }else{
-      rect(scene,385,1251,317,66,18,'#263550');
-      txt(scene,390,1260,state.ticket.regularRemaining>0?'剩余 '+state.ticket.regularRemaining+' 次常规刮力':'可收下当前奖分',21,C.muted,303,'center');
+      rect(scene,rightX,1251,rightW,66,18,'#263550');
+      txt(scene,rightX,1260,state.ticket.regularRemaining>0?'余 '+state.ticket.regularRemaining+' 次':'可收下',21,C.muted,rightW,'center');
     }
   }
   foil.endFrame();
-  foil.setEnabled(state.phase==='ticket'&&!toolsOpen&&!state.committed&&(state.ticket.regularRemaining>0||state.riskArmed));
+  foil.setEnabled(state.phase==='ticket'&&!toolsOpen&&!swapOpen&&!state.committed&&(state.ticket.regularRemaining>0||state.riskArmed));
 }
 async function boot():Promise<void>{
   sizeToWindow();window.addEventListener('resize',sizeToWindow);attachPointerButtons();

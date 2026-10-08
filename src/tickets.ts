@@ -1,6 +1,6 @@
 import type {SymbolKey,Ticket} from './rules.js';
 
-export type TicketId='T01'|'T02'|'T03'|'T04'|'T05'|'T06'|'T07'|'T08'|'T12';
+export type TicketId='T01'|'T02'|'T03'|'T04'|'T05'|'T06'|'T07'|'T08'|'T09'|'T10'|'T11'|'T12';
 export type BossId='B01'|'B02'|'B03'|'B04'|'B05'|'B06'|'B07'|'B08'|'B09';
 export interface TicketDef {id:TicketId;name:string;effect:string;strategy:string;}
 export const TICKET_TYPES:readonly TicketDef[]=[
@@ -12,6 +12,9 @@ export const TICKET_TYPES:readonly TicketDef[]=[
  {id:'T06',name:'齿轮轨道',effect:'齿轮邻接每对加分提升至 12；不发基础连线分',strategy:'齿轮专精'},
  {id:'T07',name:'深印票',effect:'免费刮力 +1；开票压力 +1',strategy:'冒险多刮'},
  {id:'T08',name:'薄纸票',effect:'免费刮力 -1；每个自然符号基础分 +4',strategy:'精准高分'},
+ {id:'T09',name:'折返票',effect:'本票免费交换两枚已激活自然符号一次',strategy:'交换构筑'},
+ {id:'T10',name:'月相票',effect:'激活不超过7格 X×1.40，否则 X×0.80',strategy:'提前收手'},
+ {id:'T11',name:'压轴票',effect:'前7格自然基础分 -3，第8格自然符号 B+60',strategy:'第八格爆发'},
  {id:'T12',name:'满版票',effect:'免费刮力 +2；不可加刮；连线 B +16；M -0.20',strategy:'大范围刮开'}
 ];
 export const BOSSES:Readonly<Record<BossId,{name:string;effect:string}>>={
@@ -41,9 +44,10 @@ export function ticketDefinition(id:TicketId):TicketDef{
  if(!result)throw new Error('无效票型 '+id);
  return result;
 }
-export function ticketCandidates(seed:string,round:number,number:number,plate:readonly SymbolKey[]):TicketDef[]{
+export function ticketCandidates(seed:string,round:number,number:number,plate:readonly SymbolKey[],stamps:readonly string[]=[]):TicketDef[]{
  const extra=TICKET_TYPES.filter(type=>type.id!=='T01'&&
-   (type.id!=='T06'||plate.filter(sym=>sym==='gear').length>=2));
+   (type.id!=='T06'||plate.filter(sym=>sym==='gear').length>=2)&&
+   (type.id!=='T10'||stamps.includes('R20')||stamps.includes('R23')));
  let x=hash(seed+':tickets:'+round+':'+number);
  const shuffled=[...extra];
  for(let i=shuffled.length-1;i>0;i--){
@@ -66,4 +70,18 @@ export function applyTicketChoice(ticket:Ticket,id:TicketId,bossId?:BossId,first
  if(bossId==='B06')next.scoutRemaining+=1;
  if(bossId==='B09'&&firstInRound)next.scoutRemaining+=2;
  return next;
+}
+
+/** Free exchange on T09; independent of the paid I08 consumable. */
+export function swapTicket(ticket:Ticket,first:number,second:number,source:'ticket'|'stamp'='ticket'):Ticket{
+ if(ticket.status!=='active'||ticket.settled)throw new Error('本票已经结算');
+ if(source==='ticket'&&(ticket.ticketType!=='T09'||ticket.freeSwapUsed))throw new Error('本票没有剩余免费交换');
+ if(source==='stamp'&&ticket.stampSwapUsed)throw new Error('本票印章交换已用');
+ if(first===second||![first,second].every(i=>
+  Number.isInteger(i)&&i>=0&&i<16&&ticket.cells[i].state==='active'&&ticket.cells[i].symbol!=='ink'
+ ))throw new Error('只能交换两个不同的已激活非墨团格');
+ const cells=ticket.cells.map(c=>({...c}));
+ [cells[first].symbol,cells[second].symbol]=[cells[second].symbol,cells[first].symbol];
+ return {...ticket,cells,freeSwapUsed:source==='ticket'?true:ticket.freeSwapUsed,
+  stampSwapUsed:source==='stamp'?true:ticket.stampSwapUsed};
 }

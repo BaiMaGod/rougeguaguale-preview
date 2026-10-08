@@ -11,6 +11,7 @@ export interface Ticket {
   pressure: number; extraUsed: number; activatedOrder: number[];
   itemsUsed?:number;itemMultiplier?:number;itemIndependent?:number;
   inkColor?:Exclude<SymbolKey,'ink'>;annotatedCell?:number;inkGuard?:boolean;
+  freeSwapUsed?:boolean;stampSwapUsed?:boolean;openCopper?:number;
   extraDiscount?:boolean;extraPenaltyTotal?:number;echoPending?:boolean;echoBonus?:number;
   status: TicketStatus; finalScore: number | null; settled: boolean;
 }
@@ -92,7 +93,7 @@ export function activateCell(ticket: Ticket,index: number,{extra=false,build}: {
     if(next.regularRemaining>0) throw new Error('免费次数尚未用完');
     if(next.extraRemaining<=0) throw new Error('额外刮开已用完');
     next.extraRemaining-=1;next.extraUsed+=1;next.pressure+=1;
-    next.extraPenaltyTotal=(next.extraPenaltyTotal??ticket.extraUsed*.25)+(next.extraDiscount?.125:.25);
+    next.extraPenaltyTotal=(next.extraPenaltyTotal??ticket.extraUsed*.25)+Math.max(0,.25-(build?.stamps.includes('R27')?.10:0))*(next.extraDiscount?.5:1);
   }else{
     if(next.regularRemaining<=0) throw new Error('免费刮开次数已用完');
     next.regularRemaining-=1;
@@ -101,7 +102,7 @@ export function activateCell(ticket: Ticket,index: number,{extra=false,build}: {
   if(cell.symbol==='leaf') next.pressure=Math.max(0,next.pressure-1);
   if(cell.symbol==='ink'){
     if(next.inkGuard)next.inkGuard=false;
-    else next.pressure+=1;
+    else if(!(build?.stamps.includes('R25')&&!ticket.activatedOrder.some(i=>ticket.cells[i].symbol==='ink')))next.pressure+=1;
   }
   if(next.echoPending&&cell.symbol!=='ink'){
     next.echoBonus=(next.echoBonus??0)+symbolInstanceBase(next,index,build);
@@ -131,6 +132,7 @@ function symbolInstanceBase(ticket:Ticket,index:number,build?:Build):number{
   let base=SYMBOLS[sym].base+(sym!=='ink'?(build?.levels[sym]??0)*4:0);
   if(ticket.ticketType==='T08'&&sym!=='ink')base+=4;
   if(ticket.inkColor===sym)base+=6;
+  if(ticket.ticketType==='T11'&&ticket.activatedOrder.indexOf(index)>=0&&ticket.activatedOrder.indexOf(index)<7&&sym!=='ink')base=Math.max(0,base-3);
   if(ticket.bossId==='B02'&&[0,3,12,15].includes(index))base=0;
   if(ticket.bossId==='B05'&&ticket.activatedOrder.filter(i=>ticket.cells[i].symbol!=='ink').slice(0,2).includes(index))base=0;
   return base;
@@ -193,9 +195,17 @@ export function calculateScore(ticket:Ticket,{accident=ticket.status==='accident
   const ticketBase=type==='T01'&&active.length>=6?10:0;
   const extraPenalty=ticket.extraPenaltyTotal??ticket.extraUsed*.25;
   let buildBonus=0;
+  if(type==='T11'&&active.length>=8&&ticket.cells[ticket.activatedOrder[7]]?.symbol!=='ink')buildBonus+=60;
   if(build){
     const owned=new Set(build.stamps);
     if(owned.has('R01')) buildBonus+=(counts.get('star')??0)*4;
+    if(owned.has('R03'))buildBonus+=[...counts.values()].filter(n=>n===2).length*8;
+    if(owned.has('R11')){
+      buildBonus+=active.filter(c=>c.symbol==='gear'&&active.some(other=>other!==c&&other.symbol==='gear'&&
+        Math.abs(Math.floor(other.index/4)-Math.floor(c.index/4))+Math.abs(other.index%4-c.index%4)===1)).length*8;
+    }
+    if(owned.has('R19')&&ticket.status!=='accident')buildBonus+=Math.min(3,ticket.regularRemaining)*8;
+    if(owned.has('R44')&&(ticket.openCopper??0)>=10)buildBonus+=15;
     // R09 is included in lineBase so B04 can halve combined line rewards.
     if(owned.has('R41') && counts.size>=4)buildBonus+=20;
     if(owned.has('R02'))buildBonus+=tripleGroups*12;
@@ -203,7 +213,14 @@ export function calculateScore(ticket:Ticket,{accident=ticket.status==='accident
     if(owned.has('R33'))buildBonus+=(counts.get('gem')??0)*6;
   }
   const B=symbolBase+gearBase+tripleBase+lineBase+crafterBase+ticketBase+buildBonus+(ticket.echoBonus??0);
-  const M=Math.max(.5,1+bellMultiplier+tripleMultiplier+varietyMultiplier-extraPenalty-(type==='T12'?.20:0)+(ticket.itemMultiplier??0)-(ticket.bossId==='B07'?.75:0));
+  let stampMultiplier=0;
+  if(build){
+    if(build.stamps.includes('R04')&&(counts.get('bell')??0)>=3)stampMultiplier+=.40;
+    if(build.stamps.includes('R20')&&active.length>0&&active.length<=7&&ticket.status!=='accident')stampMultiplier+=.25;
+    if(build.stamps.includes('R28')&&ticket.pressure===2&&!accident)stampMultiplier+=.40;
+    if(build.stamps.includes('R45')&&counts.size>=5)stampMultiplier+=.50;
+  }
+  const M=Math.max(.5,1+bellMultiplier+tripleMultiplier+varietyMultiplier+stampMultiplier-extraPenalty-(type==='T12'?.20:0)+(ticket.itemMultiplier??0)-(ticket.bossId==='B07'?.75:0));
   const stampX:number[]=[];
   if(build){
     if(build.stamps.includes('R08')&&tripleGroups>=3)stampX.push(2);
@@ -213,7 +230,7 @@ export function calculateScore(ticket:Ticket,{accident=ticket.status==='accident
   if(ticket.bossId==='B08'&&stampX.length){
     const top=stampX.indexOf(Math.max(...stampX));stampX[top]=Math.min(stampX[top],1.5);
   }
-  const X=(ticket.itemIndependent??1)*stampX.reduce((result,value)=>result*value,1);
+  const X=(ticket.itemIndependent??1)*(type==='T10'?(active.length<=7?1.4:.8):1)*stampX.reduce((result,value)=>result*value,1);
   const score=accident?Math.floor(B*.40):Math.floor(B*M*X+1e-9);
   return {score,B,M,X,accident,breakdown:{
     activeCount:active.length,symbolBase,gearBase,tripleGroups,tripleBase,lineCount,
