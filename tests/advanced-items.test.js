@@ -6,7 +6,7 @@ import {buyItem,useItem,ITEMS,itemOffer} from '../build/items.js';
 import {applyTicketChoice,bossForRound,BOSSES} from '../build/tickets.js';
 const plate=[...INITIAL_PLATE];
 function bag(...ids){const b=createBuild();b.items=ids;return b;}
-function spend(id,t= createTicket('t'),target={}){
+function spend(id,t= createTicket('t',plate),target={}){
  return useItem(bag(id),t,id,target);
 }
 test('all twelve shop tool ids produce valid seeded offers even with high-bit hashes',()=>{

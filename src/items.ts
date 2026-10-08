@@ -60,7 +60,7 @@ export function useItem(build:Build,ticket:Ticket,id:ItemId,target:ItemTarget={}
  if(!(build.items??[]).includes(id))throw new Error('背包没有该道具');
  if(!canUseItem(ticket,id))throw new Error('当前状态无法使用此道具');
  // Validate targets before spending currency or inventory; invalid interaction is a no-op.
- if(id==='I04'&&(!Number.isInteger(target.row)||target.row!>=0||target.row!>3||
+ if(id==='I04'&&(!Number.isInteger(target.row)||target.row===undefined||target.row<0||target.row>3||
     !ticket.cells.some(c=>Math.floor(c.index/4)===target.row&&c.state!=='active')))throw new Error('请选择可以显影的行');
  if(id==='I05'&&(!target.symbol||!(target.symbol in {star:1,bell:1,leaf:1,gear:1,gem:1})))throw new Error('请指定自然符号');
  if(id==='I08'&&(!Number.isInteger(target.cell)||!Number.isInteger(target.second)||
