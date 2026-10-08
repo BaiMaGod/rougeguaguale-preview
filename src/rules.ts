@@ -15,6 +15,8 @@ export interface Ticket {
   freeSwapUsed?:boolean;stampSwapUsed?:boolean;openCopper?:number;
   extraDiscount?:boolean;extraPenaltyTotal?:number;echoPending?:boolean;echoBonus?:number;
   echoCount?:number;keyScoutUsed?:boolean;
+  echoValues?:number[];prescoutedIndices?:number[];leafPressureIndices?:number[];
+  lastActivationExtra?:boolean;safetyUsed?:boolean;sparkSeen?:boolean;
   status: TicketStatus; finalScore: number | null; settled: boolean;
 }
 export interface ScoreResult {
@@ -78,7 +80,8 @@ export function createTicket(seed='demo-1', layoutOverride: SymbolKey[] | null=n
   };
 }
 export function cloneTicket(ticket: Ticket): Ticket {
-  return {...ticket,cells:ticket.cells.map(c=>({...c})),activatedOrder:[...ticket.activatedOrder]};
+  return {...ticket,cells:ticket.cells.map(c=>({...c})),activatedOrder:[...ticket.activatedOrder],
+ echoValues:[...(ticket.echoValues??[])],prescoutedIndices:[...(ticket.prescoutedIndices??[])],leafPressureIndices:[...(ticket.leafPressureIndices??[])]};
 }
 function assertPlayable(ticket: Ticket): void {
   if (ticket.status!=='active' || ticket.settled) throw new Error('本张票已经结束');
@@ -106,8 +109,17 @@ export function activateCell(ticket: Ticket,index: number,{extra=false,build}: {
     if(next.regularRemaining<=0) throw new Error('免费刮开次数已用完');
     next.regularRemaining-=1;
   }
-  cell.state='active';next.activatedOrder.push(index);
-  if(cell.symbol==='leaf') next.pressure=Math.max(0,next.pressure-1);
+  if(cell.state==='scouted')next.prescoutedIndices!.push(index);
+  cell.state='active';next.activatedOrder.push(index);next.lastActivationExtra=extra;
+  const recordEcho=(points:number):void=>{
+    if(points<=0||(next.echoCount??0)>=16)return;
+    next.echoValues!.push(points);next.echoCount=(next.echoCount??0)+1;
+    next.echoBonus=(next.echoBonus??0)+points;
+  };
+  if(cell.symbol==='leaf'){
+    if(next.pressure>0&&build?.stamps.includes('R26'))next.leafPressureIndices!.push(index);
+    next.pressure=Math.max(0,next.pressure-1);
+  }
   if(cell.symbol==='key'&&!next.keyScoutUsed){
     next.scoutRemaining+=1;next.keyScoutUsed=true;
   }
@@ -115,8 +127,10 @@ export function activateCell(ticket: Ticket,index: number,{extra=false,build}: {
     const prev=ticket.activatedOrder.slice().reverse().find(i=>SYMBOLS[ticket.cells[i].symbol].natural);
     if(prev!==undefined){
       const echo=symbolInstanceBase(ticket,prev,build);
-      if(echo>0){next.echoBonus=(next.echoBonus??0)+echo;next.echoCount=(next.echoCount??0)+1;}
+      recordEcho(echo);
+      if(!next.sparkSeen&&ticket.cells[prev].symbol==='gem'&&build?.stamps.includes('R35'))recordEcho(echo);
     }
+    next.sparkSeen=true;
   }
   if(cell.symbol==='ink'){
     if(next.inkGuard)next.inkGuard=false;
@@ -124,10 +138,17 @@ export function activateCell(ticket: Ticket,index: number,{extra=false,build}: {
   }
   if(next.echoPending&&cell.symbol!=='ink'){
     const echo=symbolInstanceBase(next,index,build);
-    if(echo>0){next.echoBonus=(next.echoBonus??0)+echo;next.echoCount=(next.echoCount??0)+1;}
+    recordEcho(echo);
     next.echoPending=false;
   }
-  if(next.pressure>=3){next.status='accident';next.finalScore=calculateScore(next,{accident:true,build}).score;}
+  if(next.pressure>=3){
+    if(build?.stamps.includes('R29')&&!next.safetyUsed){
+      next.pressure=2;next.safetyUsed=true;
+    }else{
+      next.status='accident';
+      next.finalScore=calculateScore(next,{accident:true,build}).score;
+    }
+  }
   return next;
 }
 export function rowClues(ticket:Ticket):{label:string;symbol:SymbolKey|null;count:number;tied:boolean}[]{
@@ -206,6 +227,42 @@ function prismTriples(counts:Map<SymbolKey,number>,prisms:number):number{
  }
  return Math.max(...dp);
 }
+/** Choose a deterministic prism allocation maximizing actual triple groups. */
+function assignPrisms(counts:Map<SymbolKey,number>,prisms:number):Map<SymbolKey,number>{
+ const keys=[...counts.keys()].sort((a,b)=>SYMBOLS[a].id.localeCompare(SYMBOLS[b].id));
+ if(!keys.length)return new Map();
+ let dp:Array<{groups:number;alloc:number[]}|null>=Array(prisms+1).fill(null);
+ dp[0]={groups:0,alloc:[]};
+ for(const key of keys){
+  const next:Array<{groups:number;alloc:number[]}|null>=Array(prisms+1).fill(null);
+  for(let used=0;used<=prisms;used++)if(dp[used]){
+   for(let n=0;used+n<=prisms;n++){
+    const candidate={groups:dp[used]!.groups+Math.floor(((counts.get(key)??0)+n)/3),
+      alloc:[...dp[used]!.alloc,n]};
+    if(!next[used+n]||candidate.groups>next[used+n]!.groups)next[used+n]=candidate;
+   }
+  }
+  dp=next;
+ }
+ let best=dp[0]!;
+ for(const choice of dp)if(choice&&choice.groups>best.groups)best=choice;
+ return new Map(keys.map((key,i)=>[key,(counts.get(key)??0)+best.alloc[i]]));
+}
+function neighborPairs(ticket:Ticket,first:SymbolKey,second:SymbolKey):number{
+ let count=0;
+ for(const c of ticket.cells){
+  if(c.state!=='active'||c.symbol!==first)continue;
+  const r=Math.floor(c.index/4),col=c.index%4;
+  for(const [dy,dx] of [[1,0],[-1,0],[0,1],[0,-1]]){
+   const y=r+dy,x=col+dx;
+   if(y>=0&&y<4&&x>=0&&x<4){
+    const other=ticket.cells[y*4+x];
+    if(other.state==='active'&&other.symbol===second)count++;
+   }
+  }
+ }
+ return count;
+}
 export function calculateScore(ticket:Ticket,{accident=ticket.status==='accident',build}:{accident?:boolean;build?:Build}={}):ScoreResult{
   const active=ticket.cells.filter(c=>c.state==='active');
   const counts=new Map<SymbolKey,number>();
@@ -218,7 +275,10 @@ export function calculateScore(ticket:Ticket,{accident=ticket.status==='accident
     if(def.natural) counts.set(sym,(counts.get(sym)??0)+1);
     if(sym==='bell') bellMultiplier+=ticket.bossId==='B03'?.05:.10;
   }
-  const tripleGroups=prismTriples(counts,active.filter(c=>c.symbol==='prism').length);
+  const assigned=assignPrisms(counts,active.filter(c=>c.symbol==='prism').length);
+  const tripleGroups=[...assigned.values()].reduce((sum,n)=>sum+Math.floor(n/3),0);
+  const preScouted=(ticket.prescoutedIndices??[]).filter(i=>ticket.cells[i]?.state==='active'&&SYMBOLS[ticket.cells[i].symbol].natural);
+  const normal=!accident;
   const tripleBase=tripleGroups*(type==='T04'?35:type==='T05'?10:20);
   const tripleMultiplier=tripleGroups*(type==='T04'?.10:.20);
   const lines=validLines(ticket);
@@ -261,16 +321,65 @@ export function calculateScore(ticket:Ticket,{accident=ticket.status==='accident
     if(owned.has('R33'))buildBonus+=(counts.get('gem')??0)*6;
     if(owned.has('R06'))buildBonus+=active.filter(c=>c.symbol==='prism').length*8;
     if(owned.has('R22'))buildBonus+=(counts.get('moon')??0)*10;
-    if(owned.has('R34'))buildBonus+=(ticket.echoCount??0)*6;
+    // R34 is applied after deriving all nonrecursive settlement echoes.
     if(owned.has('R42'))buildBonus+=(counts.get('sun')??0)*6;
+    if(owned.has('R12')){
+      const horizontal=new Set(lines.filter(line=>line[1]-line[0]===1).flat());
+      const vertical=new Set(lines.filter(line=>line[1]-line[0]===4).flat());
+      buildBonus+=[...horizontal].filter(i=>vertical.has(i)).length*12;
+    }
+    if(owned.has('R18'))buildBonus+=preScouted.length*8;
+    if(owned.has('R26'))buildBonus+=(ticket.leafPressureIndices??[]).length*10;
+    if(owned.has('R31'))buildBonus+=active.filter(c=>c.symbol==='ink').length*18;
+    if(owned.has('R30')&&ticket.lastActivationExtra&&ticket.activatedOrder.length&&
+      SYMBOLS[ticket.cells[ticket.activatedOrder[ticket.activatedOrder.length-1]].symbol].natural)buildBonus+=30;
+    if(owned.has('R36')){
+      for(const step of [3,6,9]){
+        const index=ticket.activatedOrder[step-1];
+        if(index!==undefined&&SYMBOLS[ticket.cells[index].symbol].natural)buildBonus+=10;
+      }
+    }
   }
-  const B=symbolBase+gearBase+tripleBase+lineBase+crafterBase+ticketBase+buildBonus+(ticket.echoBonus??0);
+  // Echoes generated during scratches are locked snapshots; settlement echoes
+  // are derived without mutating the saved ticket, so previews remain idempotent.
+  const historical=[...(ticket.echoValues??[])];
+  const derived:number[]=[];
+  if(build?.stamps.includes('R07')){
+    for(const [sym,count] of assigned){
+      if(count<3)continue;
+      const relevant=active.filter(c=>c.symbol===sym);
+      if(relevant.length)derived.push(Math.max(...relevant.map(c=>symbolInstanceBase(ticket,c.index,build))));
+    }
+  }
+  if(build?.stamps.includes('R38')&&normal){
+    const index=[...ticket.activatedOrder].reverse().find(i=>SYMBOLS[ticket.cells[i].symbol].natural);
+    if(index!==undefined)derived.push(symbolInstanceBase(ticket,index,build));
+  }
+  const oldCount=ticket.echoCount??0;
+  // Old V0.9 saves may have an aggregate echo tally but no per-source array.
+  const available=Math.max(0,16-oldCount);
+  const added=derived.filter(n=>n>0).slice(0,available);
+  const allEchoes=[...historical,...added];
+  const oldEchoB=ticket.echoBonus??0;
+  const copied=build?.stamps.includes('R37')?allEchoes.slice(0,Math.min(2,16-allEchoes.length)):[];
+  const echoCount=Math.min(16,oldCount+added.length+copied.length);
+  const echoB=oldEchoB+added.reduce((a,b)=>a+b,0)+copied.reduce((a,b)=>a+b,0);
+  if(build?.stamps.includes('R34'))buildBonus+=echoCount*6;
+  const B=symbolBase+gearBase+tripleBase+lineBase+crafterBase+ticketBase+buildBonus+echoB;
   let stampMultiplier=0;
   if(build){
     if(build.stamps.includes('R04')&&(counts.get('bell')??0)>=3)stampMultiplier+=.40;
     if(build.stamps.includes('R20')&&active.length>0&&active.length<=7&&ticket.status!=='accident')stampMultiplier+=.25;
     if(build.stamps.includes('R28')&&ticket.pressure===2&&!accident)stampMultiplier+=.40;
     if(build.stamps.includes('R45')&&counts.size>=5)stampMultiplier+=.50;
+    if(build.stamps.includes('R05')&&assigned.size)
+      stampMultiplier+=Math.max(...[...assigned.values()].map(n=>Math.floor(n/3)))*.25;
+    if(build.stamps.includes('R13')&&(
+       lines.filter(line=>line[1]-line[0]===1).length>=2||
+       lines.filter(line=>line[1]-line[0]===4).length>=2))stampMultiplier+=.50;
+    if(build.stamps.includes('R15'))stampMultiplier+=Math.min(.60,neighborPairs(ticket,'gear','gear')*.075);
+    if(build.stamps.includes('R21')&&preScouted.length>=3)stampMultiplier+=.50;
+    if(build.stamps.includes('R39'))stampMultiplier+=Math.min(.60,neighborPairs(ticket,'spark','gem')*.20);
   }
   const moonMultiplier=active.length<=7?Math.min(.75,(counts.get('moon')??0)*.25):0;
   const vaultMultiplier=(ticket.openCopper??0)>=10?(counts.get('vault')??0)*.20:0;
@@ -282,6 +391,10 @@ export function calculateScore(ticket:Ticket,{accident=ticket.status==='accident
     if(build.stamps.includes('R23')&&ticket.regularRemaining>=2)stampX.push(1.4);
     if(build.stamps.includes('R46')&&counts.size>=5&&!active.some(c=>c.symbol==='ink')&&!accident)stampX.push(1.3);
     if(build.stamps.includes('R48')&&counts.size>=6)stampX.push(1.8);
+    if(build.stamps.includes('R24')&&normal&&active.length>=6&&active.length<=7&&
+       preScouted.length>=3&&!active.some(c=>c.symbol==='ink'))stampX.push(1.8);
+    if(build.stamps.includes('R32')&&normal&&ticket.extraUsed>0&&ticket.pressure===2)stampX.push(2);
+    if(build.stamps.includes('R40')&&echoCount>=4)stampX.push(1.75);
   }
   if(ticket.bossId==='B08'&&stampX.length){
     const top=stampX.indexOf(Math.max(...stampX));stampX[top]=Math.min(stampX[top],1.5);

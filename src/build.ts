@@ -31,11 +31,33 @@ export const STAMPS:readonly StampDef[]=[
  {id:'R34',name:'余音纸',description:'每次非零回声额外 B+6',price:6,tag:'回声'},
  {id:'R42',name:'太阳贴',description:'每枚激活太阳额外 B+6',price:6,tag:'杂彩'},
  {id:'R46',name:'收藏家的票根',description:'5种自然符号且无墨团的正常票 X×1.30',price:10,tag:'杂彩'},
- {id:'R48',name:'万花印记',description:'激活6种自然符号时 X×1.80',price:16,tag:'杂彩'}
+ {id:'R48',name:'万花印记',description:'激活6种自然符号时 X×1.80',price:16,tag:'杂彩'},
+ {id:'R05',name:'同色滚轴',description:'最多三响的单类型，每组三响 M+0.25',price:10,tag:'同色'},
+ {id:'R07',name:'复写徽记',description:'每种形成三响的自然类型，复制该类型最高的激活基础分一次',price:10,tag:'回声'},
+ {id:'R12',name:'交叉订书钉',description:'每个同时属于完整横、竖线的格子 B+12',price:6,tag:'几何'},
+ {id:'R13',name:'平行导轨',description:'至少两条同方向有效连线 M+0.50',price:10,tag:'几何'},
+ {id:'R14',name:'活字滑轨',description:'每张票免费交换两枚已激活的非墨团格一次',price:10,tag:'几何'},
+ {id:'R15',name:'联轴器',description:'相邻齿轮每对 M+0.15，最多 M+0.60',price:10,tag:'几何'},
+ {id:'R18',name:'先见之笔',description:'每枚在激活前曾显影的自然符号 B+8',price:6,tag:'显影'},
+ {id:'R21',name:'精密取样',description:'至少3枚先显影的自然符号被激活时 M+0.50',price:10,tag:'显影'},
+ {id:'R24',name:'明月总图',description:'激活6–7格、至少3格先显影且未刮墨团时 X×1.80',price:16,tag:'显影'},
+ {id:'R26',name:'叶脉纸',description:'激活叶片前压力大于0时，该叶片 B+10',price:6,tag:'控压'},
+ {id:'R29',name:'安全卡扣',description:'每票首次即将爆票时防护一次，使压力回到2',price:10,tag:'控压'},
+ {id:'R30',name:'最后一刮',description:'末次激活来自冒刮且是自然符号 B+30',price:10,tag:'冒刮'},
+ {id:'R31',name:'墨渍回收',description:'每枚已激活墨团 B+18',price:10,tag:'控压'},
+ {id:'R32',name:'临界奇迹',description:'曾冒刮且正常结算、压力恰好2时 X×2.00',price:16,tag:'冒刮'},
+ {id:'R35',name:'导火线',description:'首枚火花回声若来自宝石，再追加相同回声一次',price:6,tag:'回声'},
+ {id:'R36',name:'节拍器',description:'第3、6、9次激活自然符号各 B+10',price:6,tag:'回声'},
+ {id:'R37',name:'复印轮',description:'前两次非零回声各复制一次，不递归',price:10,tag:'回声'},
+ {id:'R38',name:'末尾签名',description:'正常结算时回声最后一枚自然符号一次',price:10,tag:'回声'},
+ {id:'R39',name:'火花长列',description:'相邻火花和宝石每对 M+0.20，最多 M+0.60',price:10,tag:'回声'},
+ {id:'R40',name:'总编的批复',description:'至少4次非零回声时 X×1.75',price:16,tag:'回声'},
+ {id:'R43',name:'节约章',description:'每轮有正常收手剩余刮力时，轮后额外+1铜券',price:6,tag:'经济'},
+ {id:'R47',name:'精打细算',description:'每店首次购买商品减2铜券，最低1铜券',price:10,tag:'经济'}
 ];
 export interface Build {
   plate:SymbolKey[];levels:Record<BasicSymbol,number>;
-  stamps:string[];copper:number;shopServiceUsed:boolean;items:ItemId[];
+  stamps:string[];copper:number;shopServiceUsed:boolean;shopDiscountUsed?:boolean;items:ItemId[];
 }
 export interface RewardOption {kind:RewardKind;id:string;symbol?:BasicSymbol;stamp?:StampDef;}
 export interface ShopOffer {stampIds:string[];}
@@ -53,7 +75,7 @@ function rotated<T>(values:readonly T[],seed:string):T[]{
 export function createBuild():Build{
  return {plate:[...INITIAL_PLATE],
   levels:{star:0,bell:0,leaf:0,gear:0,gem:0,key:0,spark:0,sun:0,moon:0,vault:0},
-  stamps:[],items:[],copper:6,shopServiceUsed:false};
+  stamps:[],items:[],copper:6,shopServiceUsed:false,shopDiscountUsed:false};
 }
 export function copyBuild(b:Build):Build{
  return {...b,plate:[...b.plate],levels:{...b.levels},stamps:[...b.stamps],items:[...(b.items??[])]};
@@ -107,17 +129,24 @@ export function roundCopper(round:number,ticketsUsed:number):number{
  return base+Math.min(4,(3-ticketsUsed)*2);
 }
 export function grantRoundCopper(b:Build,round:number,ticketsUsed:number):Build{
- const out=copyBuild(b);out.copper+=roundCopper(round,ticketsUsed);out.shopServiceUsed=false;return out;
+ const out=copyBuild(b);out.copper+=roundCopper(round,ticketsUsed);out.shopServiceUsed=false;out.shopDiscountUsed=false;return out;
 }
 export function skipReward(b:Build):Build{const out=copyBuild(b);out.copper+=2;return out;}
 export function shopOffer(b:Build,round:number,seed:string):ShopOffer{
  return {stampIds:rotated(STAMPS.filter(s=>!b.stamps.includes(s.id)&&(round>=6||s.price===6)),seed+':shop:'+round).slice(0,3).map(s=>s.id)};
 }
+/** A single R47 discounted purchase per store, with no deferred or negative costs. */
+export function shopPrice(b:Build,base:number):number{
+ return b.stamps.includes('R47')&&!b.shopDiscountUsed?Math.max(1,base-2):base;
+}
 export function buyStamp(b:Build,stampId:string):Build{
  const stamp=getStamp(stampId);
  if(b.stamps.includes(stampId)||b.stamps.length>=6)throw new Error('印章槽已满或重复');
- if(b.copper<stamp.price)throw new Error('铜券不足');
- const out=copyBuild(b);out.copper-=stamp.price;out.stamps.push(stampId);return out;
+ const cost=shopPrice(b,stamp.price);
+ if(b.copper<cost)throw new Error('铜券不足');
+ const out=copyBuild(b);out.copper-=cost;out.stamps.push(stampId);
+ if(cost!==stamp.price)out.shopDiscountUsed=true;
+ return out;
 }
 export function upgradePrice(b:Build,type:BasicSymbol):number{
  if(!canUpgrade(b,type))throw new Error('升版已达上限');
@@ -126,8 +155,11 @@ export function upgradePrice(b:Build,type:BasicSymbol):number{
 export function buyUpgrade(b:Build,type:BasicSymbol):Build{
  if(b.shopServiceUsed)throw new Error('本间商店已经购买过印版服务');
  const price=upgradePrice(b,type);
- if(b.copper<price)throw new Error('铜券不足');
- const out=copyBuild(b);out.levels[type]++;out.copper-=price;out.shopServiceUsed=true;return out;
+ const cost=shopPrice(b,price);
+ if(b.copper<cost)throw new Error('铜券不足');
+ const out=copyBuild(b);out.levels[type]++;out.copper-=cost;out.shopServiceUsed=true;
+ if(cost!==price)out.shopDiscountUsed=true;
+ return out;
 }
 export function upgradeLabel(b:Build,type:BasicSymbol):string{
  return SYMBOLS[type].name+' Lv.'+b.levels[type]+' → '+(b.levels[type]+1);

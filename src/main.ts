@@ -1,5 +1,5 @@
 import {SYMBOLS, ROUND_TARGETS, createTicket, shuffledPlate, scoutCell, activateCell, calculateScore, settleTicket, rowClues, type Ticket, type SymbolKey} from './rules.js';
-import {createBuild, rewardOptions, applyReward, grantRoundCopper, skipReward, shopOffer, buyStamp, buyUpgrade, availableUpgrades, legalReprint, getStamp, upgradePrice, buildSummary, type BasicSymbol, type ReprintSymbol, type Build, type RewardOption} from './build.js';
+import {createBuild, rewardOptions, applyReward, grantRoundCopper, skipReward, shopOffer, buyStamp, buyUpgrade, availableUpgrades, legalReprint, getStamp, upgradePrice, shopPrice, buildSummary, type BasicSymbol, type ReprintSymbol, type Build, type RewardOption} from './build.js';
 import {ScratchLayer} from './scratch.js';
 import {applyTicketChoice,swapTicket,bossForRound,BOSSES,ticketCandidates,ticketDefinition,type TicketId} from './tickets.js';
 import {eventForRound,eventAvailable,eventNeedsTarget,eventNeedsStamp,applyEvent,type EventChoice} from './events.js';
@@ -13,7 +13,7 @@ const root=document.getElementById('game-root') as HTMLDivElement;
 const foilRoot=document.getElementById('scratch-root') as HTMLDivElement;
 const error=document.getElementById('load-error') as HTMLElement;
 const foil=new ScratchLayer(foilRoot);
-interface RunState {seed:string;bank:number;round:number;ticketIndex:number;ticket:Ticket;committed:boolean;riskArmed:boolean;done:boolean;build:Build;phase:'ticket'|'ticket-choice'|'reward'|'event'|'shop'|'ended';offers:string[];itemPurchased?:boolean;}
+interface RunState {seed:string;bank:number;round:number;ticketIndex:number;ticket:Ticket;committed:boolean;riskArmed:boolean;done:boolean;build:Build;phase:'ticket'|'ticket-choice'|'reward'|'event'|'shop'|'ended';offers:string[];itemPurchased?:boolean;roundConserved?:boolean;}
 const urlSeed=new URLSearchParams(location.search).get('seed');
 const makeSeed=()=>urlSeed || 'foil-'+Math.floor(Date.now()/1000);
 const state:RunState={seed:makeSeed(),bank:0,round:0,ticketIndex:1,
@@ -107,12 +107,13 @@ function newTicket():void{
   draw();renderWorkshop();saveRun();
 }
 function reset():void{
-  state.seed='foil-'+Math.floor(Date.now()/1000);state.round=0;state.bank=0;state.ticketIndex=1;state.build=createBuild();state.offers=[];
+  state.seed='foil-'+Math.floor(Date.now()/1000);state.round=0;state.bank=0;state.ticketIndex=1;state.build=createBuild();state.offers=[];state.roundConserved=false;
   history.replaceState(null,'',location.pathname+'?seed='+encodeURIComponent(state.seed));
   newTicket();
 }
 function finishTicket(accident=false):void{
   if(state.committed)return;
+  if(state.ticket.status!=='accident'&&state.ticket.regularRemaining>0)state.roundConserved=true;
   state.ticket=settleTicket(state.ticket,state.build);
   state.committed=true;state.riskArmed=false;
   const gain=state.ticket.finalScore??0;
@@ -125,6 +126,7 @@ function finishTicket(accident=false):void{
     sound('gain');
     if(state.round<8){
       state.build=grantRoundCopper(state.build,state.round,state.ticketIndex);
+      if(state.roundConserved&&state.build.stamps.includes('R43'))state.build.copper+=1;
       state.phase='reward';
     }else state.phase='ended';
   }else if(state.ticketIndex>=3){
@@ -171,6 +173,7 @@ function next():void{
 
 let toolsOpen=false;
 let swapOpen=false;
+let swapMode:'ticket'|'stamp'='ticket';
 let swapSelection:number[]=[];
 let selectedEventChoice:EventChoice|null=null;
 let selectedEventTarget:BasicSymbol|null=null;
@@ -206,7 +209,7 @@ function loadRun():boolean{
     if(urlSeed&&urlSeed!==b.seed)return false;
     Object.assign(state,{seed:b.seed,round:b.round,bank:b.bank,ticketIndex:b.ticketIndex,
       ticket:b.ticket,committed:b.committed,riskArmed:b.riskArmed,done:b.done,
-      build:b.build,phase:b.phase,offers:b.offers||[]});
+      build:b.build,phase:b.phase,offers:b.offers||[],roundConserved:!!b.roundConserved,itemPurchased:!!b.itemPurchased});
     return true;
   }catch{return false;}
 }
@@ -231,7 +234,7 @@ function renderWorkshop():void{
         ' data-action="swap-cell-'+i+'">'+String.fromCharCode(65+i%4)+(Math.floor(i/4)+1)+' · '+
         (legal?SYMBOLS[cell.symbol].name:'不可交换')+'</button>';
     }).join('');
-    content='<h2>↔ 折返票 · 免费换位</h2><p>选择两个已刮开的自然符号格，交换后只改变格子内容，不额外刮开、不改变激活顺序。本票仅限一次。</p>'+
+    content='<h2>↔ '+(swapMode==='ticket'?'折返票 · 免费换位':'活字滑轨 · 印章换位')+'</h2><p>选择两个已刮开的非墨团格，交换后不额外刮开、不改变激活顺序。此来源本票只可使用一次。</p>'+
       '<div class="work-grid">'+cells+'</div><p>已选 '+swapSelection.length+'/2</p>'+
       actionButton('确认换位','swap-confirm',swapSelection.length!==2)+actionButton('返回彩票','swap-close',false,true);
   }else if(state.phase==='ticket'&&toolsOpen){
@@ -357,17 +360,17 @@ function renderWorkshop():void{
     const offers=state.offers.map(id=>{
       const d=getStamp(id),owned=b.stamps.includes(id);
       return '<div class="work-card">'+stampLine(id)+
-      '<p>售价 '+d.price+' 铜券</p>'+
-      actionButton(owned?'已经购买':'购买印章','buy-'+id,owned||b.copper<d.price||b.stamps.length>=6)+'</div>';
+      '<p>售价 '+shopPrice(b,d.price)+' 铜券'+(shopPrice(b,d.price)<d.price?'（印章折扣）':'')+'</p>'+
+      actionButton(owned?'已经购买':'购买印章','buy-'+id,owned||b.copper<shopPrice(b,d.price)||b.stamps.length>=6)+'</div>';
     }).join('');
     const toolId=itemOffer(state.seed,state.round);
     const tool=itemDef(toolId);
-    const canBuyTool=!state.itemPurchased&&(b.items??[]).length<2&&b.copper>=tool.price;
+    const canBuyTool=!state.itemPurchased&&(b.items??[]).length<2&&b.copper>=shopPrice(b,tool.price);
     const itemCard='<div class="work-card"><div class="work-card-title">'+tool.icon+' '+tool.name+
-      ' · '+tool.price+' 铜券</div><p>'+tool.description+'</p>'+
+      ' · '+shopPrice(b,tool.price)+' 铜券</div><p>'+tool.description+'</p>'+
       actionButton(state.itemPurchased?'本店已买过工具':'购买 '+tool.name,'item-buy-'+tool.id,!canBuyTool)+'</div>';
     const upgrades=availableUpgrades(b).map(type=>{
-      const price=upgradePrice(b,type);
+      const price=shopPrice(b,upgradePrice(b,type));
       return actionButton('升 '+SYMBOLS[type].name+' (+4) · '+price+'券','upgrade-'+type,
         b.shopServiceUsed||b.copper<price,true);
     }).join('');
@@ -426,8 +429,8 @@ function handleWorkshopAction(action:string):void{
     if(action==='swap-confirm'){
       try{
         if(swapSelection.length!==2)return;
-        state.ticket=swapTicket(state.ticket,swapSelection[0],swapSelection[1]);
-        swapOpen=false;swapSelection=[];message='折返换位成功，本票的机会已用完。';
+        state.ticket=swapTicket(state.ticket,swapSelection[0],swapSelection[1],swapMode);
+        swapOpen=false;swapSelection=[];message='换位成功，本票当前来源的换位已使用。';
         draw();renderWorkshop();saveRun();
       }catch(e){showWorkshopError(e);}
       return;
@@ -559,7 +562,7 @@ function handleWorkshopAction(action:string):void{
     try{
       if(action==='shop-next'){
         state.itemPurchased=false;
-        state.round++;state.ticketIndex=1;state.bank=0;state.offers=[];
+        state.round++;state.ticketIndex=1;state.bank=0;state.offers=[];state.roundConserved=false;
         message='欢迎来到新的灯箱！';newTicket();return;
       }
       if(action.startsWith('item-buy-')){
@@ -628,10 +631,12 @@ function draw():void{
     btn(scene,48,1251,654,66,state.done?'重新挑战':state.phase==='reward'?'领取轮后奖励':state.phase==='shop'?'工坊商店':state.phase==='event'?'工坊事件':'下一张票 →','#88e5b3',state.phase==='ticket'||state.phase==='ended'?next:renderWorkshop);
   }else{
     const count=(state.build.items??[]).length;
-    const canSwap=state.ticket.ticketType==='T09'&&!state.ticket.freeSwapUsed&&state.phase==='ticket';
+    const ticketSwap=state.ticket.ticketType==='T09'&&!state.ticket.freeSwapUsed&&state.phase==='ticket';
+    const stampSwap=state.build.stamps.includes('R14')&&!state.ticket.stampSwapUsed&&state.phase==='ticket';
+    const canSwap=ticketSwap||stampSwap;
     const toolX=canSwap?265:48,toolW=canSwap?210:317;
-    if(canSwap)btn(scene,48,1251,201,66,'↔ 免费换位','#f6c783',()=>{
-      swapOpen=true;swapSelection=[];draw();renderWorkshop();
+    if(canSwap)btn(scene,48,1251,201,66,ticketSwap?'↔ 免费换位':'↔ 印章换位','#f6c783',()=>{
+      swapMode=ticketSwap?'ticket':'stamp';swapOpen=true;swapSelection=[];draw();renderWorkshop();
     },state.ticket.cells.filter(c=>c.state==='active'&&c.symbol!=='ink').length<2);
     btn(scene,toolX,1251,toolW,66,'🧰 工具 '+count+'/2','#9dccdc',()=>{
       toolsOpen=true;draw();renderWorkshop();

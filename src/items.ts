@@ -1,5 +1,5 @@
 import {cloneTicket,type Ticket,type NaturalSymbol} from './rules.js';
-import {copyBuild,type Build} from './build.js';
+import {copyBuild,shopPrice,type Build} from './build.js';
 
 export type ItemId='I01'|'I02'|'I03'|'I04'|'I05'|'I06'|'I07'|'I08'|'I09'|'I10'|'I11'|'I12';
 export interface ItemDef {id:ItemId;name:string;description:string;price:number;icon:string;}
@@ -30,9 +30,11 @@ export function itemOffer(seed:string,round:number):ItemId {
 export function buyItem(build:Build,id:ItemId):Build {
  const def=itemDef(id);
  if((build.items??[]).length>=2)throw new Error('背包已满（最多2件）');
- if(build.copper<def.price)throw new Error('铜券不足');
+ const cost=shopPrice(build,def.price);
+ if(build.copper<cost)throw new Error('铜券不足');
  const b=copyBuild(build);
- b.copper-=def.price;
+ b.copper-=cost;
+ if(cost!==def.price)b.shopDiscountUsed=true;
  b.items.push(id);
  return b;
 }
