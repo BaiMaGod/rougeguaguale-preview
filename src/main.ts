@@ -46,11 +46,15 @@ function txt(parent:any,x:number,y:number,value:string,px=24,color=C.text,width=
 function rect(parent:any,x:number,y:number,w:number,h:number,r:number,fill:string,line:string|null=null):any{
   const shape=new Laya.Sprite();
   shape.graphics.drawRoundRect(0,0,w,h,r,r,r,r,fill,line??fill,line?2:0);
-  shape.pos(x,y);parent.addChild(shape);return shape;
+  shape.size(w,h);shape.pos(x,y);parent.addChild(shape);return shape;
 }
 function btn(parent:any,x:number,y:number,w:number,h:number,title:string,fill:string,onClick:()=>void,disabled=false):void{
   const button=rect(parent,x,y,w,h,18,disabled?'#45516a':fill);
   button.mouseEnabled=!disabled;
+  button.hitTestPrior=true;
+  const hit=new Laya.HitArea();
+  hit.hit.drawRect(0,0,w,h,'#ffffff');
+  button.hitArea=hit;
   txt(button,0,7,title,27,disabled?'#a6adba':'#182238',w,'center',true);
   if(!disabled) button.on(Laya.Event.CLICK,null,onClick);
 }
