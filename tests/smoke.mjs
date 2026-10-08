@@ -18,6 +18,10 @@ try {
     },null,2));
     throw e;
   }
+  await page.getByRole('heading',{name:'选择本张刮刮乐'}).waitFor();
+  assert.equal(await page.locator('.work-card').count(),3);
+  await page.getByRole('button',{name:'选择 街角经典'}).click();
+  assert.equal(await page.locator('#workshop-overlay.open').count(),0);
   const foils=page.locator('#scratch-root canvas[data-index]');
   await page.waitForFunction(()=>document.querySelectorAll('#scratch-root canvas[data-index]').length===16);
   assert.equal(await foils.count(),16,'16 foil cells must be drawn');
@@ -72,6 +76,8 @@ try {
     [...document.querySelectorAll('#scratch-root canvas[data-index]')].length===15 &&
     [...document.querySelectorAll('#scratch-root canvas[data-index]')].every(el=>el.style.pointerEvents==='none'),null,{timeout:5000});
   await page.mouse.click(rootRect.x+375*s,rootRect.y+1285*s);
+  await page.getByRole('heading',{name:'选择本张刮刮乐'}).waitFor();
+  await page.getByRole('button',{name:'选择 街角经典'}).click();
   await page.waitForFunction(()=>document.querySelectorAll('#scratch-root canvas[data-index]').length===16,null,{timeout:5000});
   assert.deepEqual(errors,[],'there should be no browser JS errors');
   await page.screenshot({path:'scratch-smoke.png'});

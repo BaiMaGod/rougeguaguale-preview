@@ -58,6 +58,10 @@ try{
  assert.equal(run.build.stamps.length,2,'stamps must persist to next round');
  assert.equal(run.ticket.cells.length,16);
  assert.equal(await page.locator('#scratch-root canvas[data-index]').count(),16);
+ assert.equal(await page.locator('#workshop-overlay.open').count(),1);
+ await page.getByRole('heading',{name:'选择本张刮刮乐'}).waitFor();
+ assert.equal(await page.locator('.work-card').count(),3);
+ await page.getByRole('button',{name:'选择 街角经典'}).click();
  assert.equal(await page.locator('#workshop-overlay.open').count(),0);
  assert.deepEqual(errors,[]);
 
