@@ -1,6 +1,6 @@
 /** Reproducible balance harness. No use of real-money mechanics. */
 import {createBuild,applyReward,grantRoundCopper,rewardOptions,shopOffer,buyStamp,buyUpgrade,availableUpgrades} from '../build/build.js';
-import {createTicket,shuffledPlate,activateCell,settleTicket,rowClues,ROUND_TARGETS,SYMBOLS} from '../build/rules.js';
+import {createTicket,shuffledPlate,scoutCell,activateCell,settleTicket,rowClues,ROUND_TARGETS,SYMBOLS} from '../build/rules.js';
 import {bossForRound,ticketCandidates,applyTicketChoice} from '../build/tickets.js';
 function seeded(seed){
  let x=2166136261>>>0;
@@ -24,7 +24,7 @@ function choose(t,policy,rng){
  }).sort((a,b)=>b.points-a.points);
  return choices[0].index;
 }
-function simulate(policy,seed,regime='auto'){
+function simulate(policy,seed,regime='auto',targets=ROUND_TARGETS){
  const rng=seeded(seed+':choice');
  let b=createBuild();
  if(regime==='fully-boosted'){
@@ -45,12 +45,11 @@ function simulate(policy,seed,regime='auto'){
    if(b.stamps.includes('R17'))t.scoutRemaining++;
    t.openCopper=b.copper;
    if(policy==='clue'&&t.scoutRemaining){
-    for(let i=0;i<t.scoutRemaining;i++){
+    const charges=t.scoutRemaining;
+    for(let i=0;i<charges;i++){
      const hidden=t.cells.filter(c=>c.state==='hidden');
      if(!hidden.length)break;
-     const chosen=hidden[Math.floor(rng()*hidden.length)];
-     // equivalent to scoutCell but without importing browser UI
-     const index=chosen.index;t.cells[index].state='scouted';
+     t=scoutCell(t,hidden[Math.floor(rng()*hidden.length)].index);
     }
    }
    const maxActions=Math.min(8,t.regularRemaining);
@@ -61,10 +60,10 @@ function simulate(policy,seed,regime='auto'){
    t=settleTicket(t,b);
    const points=t.finalScore??0;
    ticketScores.push(points);total+=points;
-   if(total>=ROUND_TARGETS[round])break;
+   if(total>=targets[round])break;
   }
-  passed.push(total>=ROUND_TARGETS[round]);
-  scores.push({round:round+1,target:ROUND_TARGETS[round],points:total,tickets:ticketScores});
+  passed.push(total>=targets[round]);
+  scores.push({round:round+1,target:targets[round],points:total,tickets:ticketScores});
   if(!passed.at(-1))break;
   if(round===8)break;
   if(regime==='auto'){
@@ -87,26 +86,34 @@ function simulate(policy,seed,regime='auto'){
 }
 const N=Number(process.env.BALANCE_RUNS??80);
 if(!Number.isInteger(N)||N<1||N>1000)throw Error('BALANCE_RUNS must be 1..1000');
+const CURVES=[
+ {name:'original',targets:ROUND_TARGETS},
+ {name:'accessible',targets:[280,420,540,650,760,880,1010,1150,1300]},
+ {name:'middle',targets:[280,440,580,700,850,1000,1180,1370,1600]},
+ {name:'challenging',targets:[280,440,600,760,920,1100,1370,1620,1900]}
+];
 const policies=['rows','random','clue','oracle'];
 const results=[];
-for(const regime of ['auto','fully-boosted']){
- for(const policy of policies){
-  const passes=Array(9).fill(0),entered=Array(9).fill(0),average=Array(9).fill(0);
-  let complete=0;
-  for(let n=0;n<N;n++){
-   const game=simulate(policy,'balance-'+n,regime);
-   for(let i=0;i<game.scores.length;i++){
-    entered[i]++;average[i]+=game.scores[i].points;
-    if(game.passed[i])passes[i]++;
+for(const curve of CURVES){
+ for(const regime of ['auto','fully-boosted']){
+  for(const policy of policies){
+   const passes=Array(9).fill(0),entered=Array(9).fill(0),average=Array(9).fill(0);
+   let complete=0;
+   for(let n=0;n<N;n++){
+    const game=simulate(policy,'balance-'+n,regime,curve.targets);
+    for(let i=0;i<game.scores.length;i++){
+     entered[i]++;average[i]+=game.scores[i].points;
+     if(game.passed[i])passes[i]++;
+    }
+    if(game.passed.length===9&&game.passed.every(Boolean))complete++;
    }
-   if(game.passed.length===9&&game.passed.every(Boolean))complete++;
-  }
-  results.push({build:regime,policy,runs:N,wins:complete,winRate:complete/N,
+   results.push({curve:curve.name,build:regime,policy,runs:N,wins:complete,winRate:complete/N,
     stages:passes.map((p,i)=>({round:i+1,entered:entered[i],passed:p,
       passRateConditional:entered[i]?+(p/entered[i]).toFixed(3):null,
-      averageScoreEntered:entered[i]?Math.round(average[i]/entered[i]):null,target:ROUND_TARGETS[i]}))});
+      averageScoreEntered:entered[i]?Math.round(average[i]/entered[i]):null,target:curve.targets[i]}))});
+  }
  }
 }
 console.log('BALANCE_SIMULATION_START');
-console.log(JSON.stringify(results,null,2));
+console.log(JSON.stringify(results));
 console.log('BALANCE_SIMULATION_END');
