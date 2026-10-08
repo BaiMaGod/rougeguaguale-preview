@@ -1,7 +1,7 @@
 import type {SymbolKey,Ticket} from './rules.js';
 
 export type TicketId='T01'|'T02'|'T03'|'T04'|'T05'|'T06'|'T07'|'T08'|'T12';
-export type BossId='B01'|'B02'|'B03';
+export type BossId='B01'|'B02'|'B03'|'B04'|'B05'|'B06';
 export interface TicketDef {id:TicketId;name:string;effect:string;strategy:string;}
 export const TICKET_TYPES:readonly TicketDef[]=[
  {id:'T01',name:'街角经典',effect:'刮开至少 6 格，基础分 +10',strategy:'入门稳定'},
@@ -17,7 +17,10 @@ export const TICKET_TYPES:readonly TicketDef[]=[
 export const BOSSES:Readonly<Record<BossId,{name:string;effect:string}>>={
  B01:{name:'潮湿印辊',effect:'每张票开场压力 +1'},
  B02:{name:'钉角管理员',effect:'四个角格的符号自身基础分变为 0，组合与能力保留'},
- B03:{name:'哑钟巡游者',effect:'每枚铃铛的基础 M 加数从 0.10 降至 0.05'}
+ B03:{name:'哑钟巡游者',effect:'每枚铃铛的基础 M 加数从 0.10 降至 0.05'},
+ B04:{name:'弯尺总管',effect:'每张票所有连线基础分和印章连线加分合计减半'},
+ B05:{name:'吃墨蜗牛',effect:'前两枚激活的自然符号自身基础分为 0'},
+ B06:{name:'雾面玻璃匠',effect:'只显示第 1 行线索；每张票免费显影 +1'}
 };
 function hash(text:string):number{
  let h=2166136261>>>0;
@@ -25,8 +28,9 @@ function hash(text:string):number{
  return h>>>0;
 }
 export function bossForRound(round:number,seed:string):BossId|undefined{
- if(round!==2)return undefined;
- return (['B01','B02','B03'] as const)[hash(seed+':first-act-boss')%3];
+ if(round===2)return (['B01','B02','B03'] as const)[hash(seed+':first-act-boss')%3];
+ if(round===5)return (['B04','B05','B06'] as const)[hash(seed+':second-act-boss')%3];
+ return undefined;
 }
 export function ticketDefinition(id:TicketId):TicketDef{
  const result=TICKET_TYPES.find(type=>type.id===id);
@@ -55,5 +59,6 @@ export function applyTicketChoice(ticket:Ticket,id:TicketId,bossId?:BossId):Tick
  next.regularRemaining=8+(id==='T07'?1:id==='T08'?-1:id==='T12'?2:0);
  next.extraRemaining=id==='T12'?0:2;
  next.pressure=(id==='T07'?1:0)+(bossId==='B01'?1:0);
+ if(bossId==='B06')next.scoutRemaining+=1;
  return next;
 }

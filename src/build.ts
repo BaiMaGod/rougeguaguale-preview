@@ -1,4 +1,5 @@
-import {INITIAL_PLATE, SYMBOLS, type SymbolKey, type Ticket} from './rules.js';
+import {INITIAL_PLATE, SYMBOLS, type SymbolKey} from './rules.js';
+import type {ItemId} from './items.js';
 
 export type BasicSymbol=Exclude<SymbolKey,'ink'>;
 export type RewardKind='stamp'|'upgrade'|'reprint';
@@ -13,7 +14,7 @@ export const STAMPS:readonly StampDef[]=[
 ];
 export interface Build {
   plate:SymbolKey[];levels:Record<BasicSymbol,number>;
-  stamps:string[];copper:number;shopServiceUsed:boolean;
+  stamps:string[];copper:number;shopServiceUsed:boolean;items:ItemId[];
 }
 export interface RewardOption {kind:RewardKind;id:string;symbol?:BasicSymbol;stamp?:StampDef;}
 export interface ShopOffer {stampIds:string[];}
@@ -31,10 +32,10 @@ function rotated<T>(values:readonly T[],seed:string):T[]{
 export function createBuild():Build{
  return {plate:[...INITIAL_PLATE],
   levels:{star:0,bell:0,leaf:0,gear:0,gem:0},
-  stamps:[],copper:6,shopServiceUsed:false};
+  stamps:[],items:[],copper:6,shopServiceUsed:false};
 }
 export function copyBuild(b:Build):Build{
- return {...b,plate:[...b.plate],levels:{...b.levels},stamps:[...b.stamps]};
+ return {...b,plate:[...b.plate],levels:{...b.levels},stamps:[...b.stamps],items:[...(b.items??[])]};
 }
 export function getStamp(id:string):StampDef {
  const stamp=STAMPS.find(s=>s.id===id);

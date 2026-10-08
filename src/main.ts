@@ -2,6 +2,7 @@ import {SYMBOLS, ROUND_TARGETS, createTicket, shuffledPlate, scoutCell, activate
 import {createBuild, rewardOptions, applyReward, grantRoundCopper, skipReward, shopOffer, buyStamp, buyUpgrade, availableUpgrades, legalReprint, getStamp, upgradePrice, buildSummary, type BasicSymbol, type Build, type RewardOption} from './build.js';
 import {ScratchLayer} from './scratch.js';
 import {applyTicketChoice,bossForRound,BOSSES,ticketCandidates,ticketDefinition,type TicketId} from './tickets.js';
+import {itemDef,itemOffer,buyItem,useItem,type ItemId} from './items.js';
 
 declare const Laya: any;
 const W=750,H=1334;
@@ -11,7 +12,7 @@ const root=document.getElementById('game-root') as HTMLDivElement;
 const foilRoot=document.getElementById('scratch-root') as HTMLDivElement;
 const error=document.getElementById('load-error') as HTMLElement;
 const foil=new ScratchLayer(foilRoot);
-interface RunState {seed:string;bank:number;round:number;ticketIndex:number;ticket:Ticket;committed:boolean;riskArmed:boolean;done:boolean;build:Build;phase:'ticket'|'ticket-choice'|'reward'|'shop'|'ended';offers:string[];}
+interface RunState {seed:string;bank:number;round:number;ticketIndex:number;ticket:Ticket;committed:boolean;riskArmed:boolean;done:boolean;build:Build;phase:'ticket'|'ticket-choice'|'reward'|'shop'|'ended';offers:string[];itemPurchased?:boolean;}
 const urlSeed=new URLSearchParams(location.search).get('seed');
 const makeSeed=()=>urlSeed || 'foil-'+Math.floor(Date.now()/1000);
 const state:RunState={seed:makeSeed(),bank:0,round:0,ticketIndex:1,
@@ -20,7 +21,7 @@ interface HitZone {x:number;y:number;w:number;h:number;run:()=>void;}
 let hitZones:HitZone[]=[];
 let pressedZone:HitZone|null=null;
 function findZone(e:PointerEvent):HitZone|null{
-  if(state.phase!=='ticket')return null;
+  if(state.phase!=='ticket'||toolsOpen)return null;
   const b=root.getBoundingClientRect();
   if(b.width<=0||b.height<=0)return null;
   const x=(e.clientX-b.left)*W/b.width,y=(e.clientY-b.top)*H/b.height;
@@ -96,6 +97,7 @@ function flash(index:number,symbol:SymbolKey):void{
 }
 function announce(text:string):void{message=text;toastText=text;toastSerial++;draw();}
 function newTicket():void{
+  toolsOpen=false;
   foil.clear();
   const ticketSeed=state.seed+':r'+(state.round+1)+':t'+state.ticketIndex;
   state.ticket=createTicket(ticketSeed,shuffledPlate(ticketSeed,state.build.plate));
@@ -166,6 +168,7 @@ function next():void{
   state.ticketIndex++;newTicket();
 }
 
+let toolsOpen=false;
 const workshop=document.createElement('div');
 workshop.id='workshop-overlay';
 root.appendChild(workshop);
@@ -189,6 +192,7 @@ function loadRun():boolean{
     const b=JSON.parse(raw);
     if(b.version!==4||!b.build||!b.ticket||!Array.isArray(b.build.plate)||b.build.plate.length!==16)return false;
     if(!Array.isArray(b.ticket.cells)||b.ticket.cells.length!==16||!Array.isArray(b.build.stamps))return false;
+    if(!Array.isArray(b.build.items))b.build.items=[];
     if(!['ticket','ticket-choice','reward','shop','ended'].includes(b.phase)||b.round<0||b.round>8||b.ticketIndex<1||b.ticketIndex>3)return false;
     if(urlSeed&&urlSeed!==b.seed)return false;
     Object.assign(state,{seed:b.seed,round:b.round,bank:b.bank,ticketIndex:b.ticketIndex,
@@ -204,14 +208,26 @@ function actionButton(title:string,action:string,disabled=false,secondary=false)
   return '<button class="work-btn '+(secondary?'work-secondary':'')+'" data-action="'+action+'"'+(disabled?' disabled':'')+'>'+title+'</button>';
 }
 function renderWorkshop():void{
-  if(state.phase==='ticket'){
+  if(state.phase==='ticket'&&!toolsOpen){
     workshop.classList.remove('open');workshop.replaceChildren();return;
   }
   workshop.classList.add('open');
   const b=state.build;
   const header='<div class="work-top"><b>✦ 好运工坊</b><span>第 '+(state.round+1)+'/9 轮 · 🪙 '+b.copper+' 铜券</span></div>';
   let content='';
-  if(state.phase==='ticket-choice'){
+  if(state.phase==='ticket'&&toolsOpen){
+    const bag=b.items??[];
+    const cards=bag.map((id,i)=>{
+      const item=itemDef(id);
+      return '<div class="work-card"><div class="work-card-title">'+item.icon+' '+item.name+
+        '</div><p>'+item.description+'</p>'+
+        actionButton('使用 '+item.name,'tool-use-'+i,state.ticket.itemsUsed!==undefined&&state.ticket.itemsUsed>=2)+'</div>';
+    }).join('');
+    content='<h2>🧰 随身工具包</h2><p>已装 '+bag.length+'/2 件，本张票已使用 '+
+      (state.ticket.itemsUsed??0)+'/2 件。工具使用成功才会消耗。</p>'+
+      '<div class="work-cards">'+(cards||'<p>背包为空。可以在通关后的商店购买工具。</p>')+'</div>'+
+      actionButton('返回刮刮乐','tool-close',false,true);
+  }else if(state.phase==='ticket-choice'){
     const boss=bossForRound(state.round,state.seed);
     const candidates=ticketCandidates(state.seed,state.round,state.ticketIndex,b.plate);
     const bossText=boss?'<div class="work-boss"><b>⚠ 首领 '+BOSSES[boss].name+'</b><p>'+BOSSES[boss].effect+'</p></div>':'';
@@ -255,13 +271,19 @@ function renderWorkshop():void{
       '<p>售价 '+d.price+' 铜券</p>'+
       actionButton(owned?'已经购买':'购买印章','buy-'+id,owned||b.copper<d.price||b.stamps.length>=6)+'</div>';
     }).join('');
+    const toolId=itemOffer(state.seed,state.round);
+    const tool=itemDef(toolId);
+    const canBuyTool=!state.itemPurchased&&(b.items??[]).length<2&&b.copper>=tool.price;
+    const itemCard='<div class="work-card"><div class="work-card-title">'+tool.icon+' '+tool.name+
+      ' · '+tool.price+' 铜券</div><p>'+tool.description+'</p>'+
+      actionButton(state.itemPurchased?'本店已买过工具':'购买 '+tool.name,'item-buy-'+tool.id,!canBuyTool)+'</div>';
     const upgrades=availableUpgrades(b).map(type=>{
       const price=upgradePrice(b,type);
       return actionButton('升 '+SYMBOLS[type].name+' (+4) · '+price+'券','upgrade-'+type,
         b.shopServiceUsed||b.copper<price,true);
     }).join('');
     content='<h2>工坊商店</h2><p>已装备 '+b.stamps.length+'/6 枚印章。当前构筑：'+buildSummary(b)+'</p>'+
-     '<div class="work-cards">'+(offers||'<p>本次无新印章</p>')+'</div>'+
+     '<div class="work-cards">'+(offers||'<p>本次无新印章</p>')+'</div>'+itemCard+
      '<h3>升版服务（每店最多购买一次）</h3><div class="work-options">'+upgrades+'</div>'+
      actionButton('离开商店，进入第 '+(state.round+2)+' 轮','shop-next');
   }else{
@@ -281,6 +303,7 @@ function rewardChosen(option:RewardOption,source:number[]=[],target?:BasicSymbol
     state.build=applyReward(state.build,option,source,target);
     state.phase='shop';inReprint=false;reprintSelection=[];
     state.offers=shopOffer(state.build,state.round,state.seed).stampIds;
+    state.itemPurchased=false;
     message='改造完成！可以在商店继续强化。';
     draw();renderWorkshop();saveRun();
   }catch(e){showWorkshopError(e);}
@@ -292,6 +315,24 @@ function showWorkshopError(e:unknown):void{
 function handleWorkshopAction(action:string):void{
   const b=state.build;
   if(action==='run-reset'){inReprint=false;reset();return;}
+  if(state.phase==='ticket'&&toolsOpen){
+    if(action==='tool-close'){
+      toolsOpen=false;draw();renderWorkshop();return;
+    }
+    if(action.startsWith('tool-use-')){
+      const index=Number(action.slice('tool-use-'.length));
+      const id=b.items?.[index];
+      if(!id)return;
+      try{
+        const result=useItem(b,state.ticket,id);
+        state.build=result.build;state.ticket=result.ticket;
+        if(id==='I03')state.riskArmed=false;
+        message=itemDef(id).name+' 已使用！';
+        toolsOpen=false;draw();renderWorkshop();saveRun();
+      }catch(e){showWorkshopError(e);}
+    }
+    return;
+  }
   if(state.phase==='ticket-choice'&&action.startsWith('ticket-')){
     const id=action.slice('ticket-'.length) as TicketId;
     const candidates=ticketCandidates(state.seed,state.round,state.ticketIndex,b.plate);
@@ -309,6 +350,7 @@ function handleWorkshopAction(action:string):void{
     if(action==='reward-skip'){
       state.build=skipReward(b);state.phase='shop';inReprint=false;
       state.offers=shopOffer(state.build,state.round,state.seed).stampIds;
+      state.itemPurchased=false;
       draw();renderWorkshop();saveRun();return;
     }
     if(action==='reprint-open'){inReprint=true;reprintSelection=[];renderWorkshop();return;}
@@ -337,10 +379,15 @@ function handleWorkshopAction(action:string):void{
   if(state.phase==='shop'){
     try{
       if(action==='shop-next'){
+        state.itemPurchased=false;
         state.round++;state.ticketIndex=1;state.bank=0;state.offers=[];
         message='欢迎来到新的灯箱！';newTicket();return;
       }
-      if(action.startsWith('buy-')){
+      if(action.startsWith('item-buy-')){
+        const id=action.slice('item-buy-'.length) as ItemId;
+        if(state.itemPurchased||id!==itemOffer(state.seed,state.round))return;
+        state.build=buyItem(b,id);state.itemPurchased=true;
+      }else if(action.startsWith('buy-')){
         const id=action.slice(4);
         if(!state.offers.includes(id))return;
         state.build=buyStamp(b,id);
@@ -372,7 +419,7 @@ function draw():void{
   rect(scene,48,276,654,734,24,C.paper,'#c6a67a');
   txt(scene,83,287,'✦  '+ticketDefinition(state.ticket.ticketType).name,37,'#5a3c2b',450,'left',true);
   txt(scene,490,297,'4 × 4 幸运票',21,'#91714f',175,'right',true);
-  txt(scene,87,343,'线索：'+rowClues(state.ticket).map((s,i)=>(i+1)+'行'+s.label).slice(0,2).join('  ·  '),18,'#78614e',583);
+  txt(scene,87,343,'线索：'+rowClues(state.ticket).map((s,i)=>(i+1)+'行'+s.label).slice(0,state.ticket.bossId==='B06'?1:2).join('  ·  '),18,'#78614e',583);
   txt(scene,87,376,state.ticket.bossId?'首领：'+BOSSES[state.ticket.bossId].effect:'票型：'+ticketDefinition(state.ticket.ticketType).effect,19,'#845e45',590);
   state.ticket.cells.forEach((cell,index)=>{
     const col=index%4,row=Math.floor(index/4);
@@ -400,15 +447,21 @@ function draw():void{
     '#83d8d3',hint,!canHint);
   if(state.committed){
     btn(scene,48,1251,654,66,state.done?'重新挑战':state.phase==='reward'?'领取轮后奖励':state.phase==='shop'?'工坊商店':'下一张票 →','#88e5b3',state.phase==='ticket'||state.phase==='ended'?next:renderWorkshop);
-  }else if(state.ticket.regularRemaining===0 && state.ticket.extraRemaining>0){
-    btn(scene,48,1251,654,66,state.riskArmed?'已开启冒险，继续刮银层':'⚠ 冒险再刮（压力 +1）',
-      '#f0a8a2',()=>{state.riskArmed=true;message='风险已开启！继续刮开一个银色格。';draw();});
   }else{
-    rect(scene,48,1251,654,66,18,'#263550');
-    txt(scene,48,1260,'先选择票型，再按该票的免费刮力决定是否加刮',22,C.muted,654,'center');
+    const count=(state.build.items??[]).length;
+    btn(scene,48,1251,317,66,'🧰 工具包 '+count+'/2','#9dccdc',()=>{
+      toolsOpen=true;draw();renderWorkshop();
+    });
+    if(state.ticket.regularRemaining===0 && state.ticket.extraRemaining>0){
+      btn(scene,385,1251,317,66,state.riskArmed?'已开启冒险刮开':'⚠ 冒险再刮',
+        '#f0a8a2',()=>{state.riskArmed=true;message='风险已开启！继续刮开一个银色格。';draw();saveRun();});
+    }else{
+      rect(scene,385,1251,317,66,18,'#263550');
+      txt(scene,390,1260,state.ticket.regularRemaining>0?'剩余 '+state.ticket.regularRemaining+' 次常规刮力':'可收下当前奖分',21,C.muted,303,'center');
+    }
   }
   foil.endFrame();
-  foil.setEnabled(state.phase==='ticket'&&!state.committed&&(state.ticket.regularRemaining>0||state.riskArmed));
+  foil.setEnabled(state.phase==='ticket'&&!toolsOpen&&!state.committed&&(state.ticket.regularRemaining>0||state.riskArmed));
 }
 async function boot():Promise<void>{
   sizeToWindow();window.addEventListener('resize',sizeToWindow);attachPointerButtons();

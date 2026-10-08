@@ -9,6 +9,7 @@ export interface Ticket {
   seed: string; ticketType: TicketId; bossId?:BossId; crafter: string; cells: Cell[];
   regularRemaining: number; extraRemaining: number; scoutRemaining: number;
   pressure: number; extraUsed: number; activatedOrder: number[];
+  itemsUsed?:number;itemMultiplier?:number;itemIndependent?:number;
   status: TicketStatus; finalScore: number | null; settled: boolean;
 }
 export interface ScoreResult {
@@ -62,7 +63,7 @@ export function createTicket(seed='demo-1', layoutOverride: SymbolKey[] | null=n
     seed:String(seed), ticketType:'T01', crafter:'C01',
     cells:layout.map((symbol,index)=>({index,symbol,state:'hidden' as CellState})),
     regularRemaining:8,extraRemaining:2,scoutRemaining:1,pressure:0,
-    extraUsed:0,activatedOrder:[],status:'active',finalScore:null,settled:false
+    extraUsed:0,itemsUsed:0,itemMultiplier:0,itemIndependent:1,activatedOrder:[],status:'active',finalScore:null,settled:false
   };
 }
 export function cloneTicket(ticket: Ticket): Ticket {
@@ -145,6 +146,7 @@ export function calculateScore(ticket:Ticket,{accident=ticket.status==='accident
     let base=def.base+(sym!=='ink'?(build?.levels[sym]??0)*4:0);
     if(type==='T08' && sym!=='ink')base+=4;
     if(ticket.bossId==='B02' && [0,3,12,15].includes(cell.index))base=0;
+    if(ticket.bossId==='B05' && ticket.activatedOrder.filter(i=>ticket.cells[i].symbol!=='ink').slice(0,2).includes(cell.index))base=0;
     symbolBase+=base;
     if(sym!=='ink') counts.set(sym,(counts.get(sym)??0)+1);
     if(sym==='bell') bellMultiplier+=ticket.bossId==='B03'?.05:.10;
@@ -163,6 +165,11 @@ export function calculateScore(ticket:Ticket,{accident=ticket.status==='accident
     else if(type==='T12')lineBase+=16;
     else lineBase+=24;
   }
+  // B04 halves the sum of line B and line-based stamp B, without affecting
+  // the number of lines, their triggers, or unrelated stamp bonuses.
+  const lineStampBonus=build?.stamps.includes('R09')?lineCount*16:0;
+  lineBase=ticket.bossId==='B04'
+    ?Math.floor((lineBase+lineStampBonus)/2):lineBase+lineStampBonus;
   const gearBase=gearAdjacencyBonus(ticket,type==='T06'?12:8);
   const varietyMultiplier=[...counts.keys()].filter(k=>SYMBOLS[k].natural).length>=4?(type==='T05'?.60:.25):0;
   const crafterBase=(counts.get('star')??0)>0?8:0;
@@ -172,15 +179,15 @@ export function calculateScore(ticket:Ticket,{accident=ticket.status==='accident
   if(build){
     const owned=new Set(build.stamps);
     if(owned.has('R01')) buildBonus+=(counts.get('star')??0)*4;
-    if(owned.has('R09')) buildBonus+=lineCount*16;
+    // R09 is included in lineBase so B04 can halve combined line rewards.
     if(owned.has('R41') && counts.size>=4)buildBonus+=20;
     if(owned.has('R02'))buildBonus+=tripleGroups*12;
     if(owned.has('R10'))buildBonus+=active.filter(c=>c.symbol!=='ink'&&[0,3,12,15].includes(c.index)).length*8;
     if(owned.has('R33'))buildBonus+=(counts.get('gem')??0)*6;
   }
   const B=symbolBase+gearBase+tripleBase+lineBase+crafterBase+ticketBase+buildBonus;
-  const M=Math.max(.5,1+bellMultiplier+tripleMultiplier+varietyMultiplier-extraPenalty-(type==='T12'?.20:0));
-  const X=1;
+  const M=Math.max(.5,1+bellMultiplier+tripleMultiplier+varietyMultiplier-extraPenalty-(type==='T12'?.20:0)+(ticket.itemMultiplier??0));
+  const X=ticket.itemIndependent??1;
   const score=accident?Math.floor(B*.40):Math.floor(B*M*X+1e-9);
   return {score,B,M,X,accident,breakdown:{
     activeCount:active.length,symbolBase,gearBase,tripleGroups,tripleBase,lineCount,
