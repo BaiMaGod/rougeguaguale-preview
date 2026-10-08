@@ -46,7 +46,9 @@ export const INITIAL_PLATE: SymbolKey[] = [
   'star','star','star','star','bell','bell','bell','leaf',
   'leaf','leaf','gear','gear','gem','gem','ink','ink'
 ];
-export const ROUND_TARGETS = [280,440,650,950,1350,1900,2700,3800,5400];
+export const CHALLENGE_TARGETS = [280,440,650,950,1350,1900,2700,3800,5400];
+/** Standard commission curve, provisionally calibrated from seeded nine-round bot simulations. */
+export const ROUND_TARGETS = [280,420,540,650,760,880,1010,1150,1300];
 function hashSeed(text: string): number {
   let h = 2166136261 >>> 0;
   for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h,16777619); }

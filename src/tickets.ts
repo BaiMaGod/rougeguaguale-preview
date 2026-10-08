@@ -1,4 +1,5 @@
 import type {SymbolKey,Ticket} from './rules.js';
+import type {Build} from './build.js';
 
 export type TicketId='T01'|'T02'|'T03'|'T04'|'T05'|'T06'|'T07'|'T08'|'T09'|'T10'|'T11'|'T12';
 export type BossId='B01'|'B02'|'B03'|'B04'|'B05'|'B06'|'B07'|'B08'|'B09';
@@ -73,9 +74,10 @@ export function applyTicketChoice(ticket:Ticket,id:TicketId,bossId?:BossId,first
 }
 
 /** Free exchange on T09; independent of the paid I08 consumable. */
-export function swapTicket(ticket:Ticket,first:number,second:number,source:'ticket'|'stamp'='ticket'):Ticket{
+export function swapTicket(ticket:Ticket,first:number,second:number,source:'ticket'|'stamp'='ticket',build?:Build):Ticket{
  if(ticket.status!=='active'||ticket.settled)throw new Error('本票已经结算');
  if(source==='ticket'&&(ticket.ticketType!=='T09'||ticket.freeSwapUsed))throw new Error('本票没有剩余免费交换');
+ if(source==='stamp'&&!build?.stamps.includes('R14'))throw new Error('未装备活字滑轨印章');
  if(source==='stamp'&&ticket.stampSwapUsed)throw new Error('本票印章交换已用');
  if(first===second||![first,second].every(i=>
   Number.isInteger(i)&&i>=0&&i<16&&ticket.cells[i].state==='active'&&ticket.cells[i].symbol!=='ink'

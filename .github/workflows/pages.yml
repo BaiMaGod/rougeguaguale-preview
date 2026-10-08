@@ -66,6 +66,7 @@ jobs:
           node tests/expansion-ui.mjs
           node tests/new-symbols-ui.mjs
           node tests/stamps-v1-ui.mjs
+          node tests/mode-v1-ui.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

@@ -1,4 +1,4 @@
-import {SYMBOLS, ROUND_TARGETS, createTicket, shuffledPlate, scoutCell, activateCell, calculateScore, settleTicket, rowClues, type Ticket, type SymbolKey} from './rules.js';
+import {SYMBOLS, ROUND_TARGETS, CHALLENGE_TARGETS, createTicket, shuffledPlate, scoutCell, activateCell, calculateScore, settleTicket, rowClues, type Ticket, type SymbolKey} from './rules.js';
 import {createBuild, rewardOptions, applyReward, grantRoundCopper, skipReward, shopOffer, buyStamp, buyUpgrade, availableUpgrades, legalReprint, getStamp, upgradePrice, shopPrice, buildSummary, type BasicSymbol, type ReprintSymbol, type Build, type RewardOption} from './build.js';
 import {ScratchLayer} from './scratch.js';
 import {applyTicketChoice,swapTicket,bossForRound,BOSSES,ticketCandidates,ticketDefinition,type TicketId} from './tickets.js';
@@ -13,11 +13,13 @@ const root=document.getElementById('game-root') as HTMLDivElement;
 const foilRoot=document.getElementById('scratch-root') as HTMLDivElement;
 const error=document.getElementById('load-error') as HTMLElement;
 const foil=new ScratchLayer(foilRoot);
-interface RunState {seed:string;bank:number;round:number;ticketIndex:number;ticket:Ticket;committed:boolean;riskArmed:boolean;done:boolean;build:Build;phase:'ticket'|'ticket-choice'|'reward'|'event'|'shop'|'ended';offers:string[];itemPurchased?:boolean;roundConserved?:boolean;}
+interface RunState {seed:string;bank:number;round:number;ticketIndex:number;ticket:Ticket;committed:boolean;riskArmed:boolean;done:boolean;build:Build;phase:'ticket'|'ticket-choice'|'reward'|'event'|'shop'|'ended';offers:string[];itemPurchased?:boolean;roundConserved?:boolean;difficulty?:'standard'|'challenge';}
 const urlSeed=new URLSearchParams(location.search).get('seed');
 const makeSeed=()=>urlSeed || 'foil-'+Math.floor(Date.now()/1000);
 const state:RunState={seed:makeSeed(),bank:0,round:0,ticketIndex:1,
-  ticket:createTicket('initial'),committed:false,riskArmed:false,done:false,build:createBuild(),phase:'ticket',offers:[]};
+  ticket:createTicket('initial'),committed:false,riskArmed:false,done:false,build:createBuild(),phase:'ticket',offers:[],
+  difficulty:new URLSearchParams(location.search).get('mode')==='challenge'?'challenge':'standard'};
+const roundGoal=():number=>(state.difficulty==='challenge'?CHALLENGE_TARGETS:ROUND_TARGETS)[state.round];
 interface HitZone {x:number;y:number;w:number;h:number;run:()=>void;}
 let hitZones:HitZone[]=[];
 let pressedZone:HitZone|null=null;
@@ -118,7 +120,7 @@ function finishTicket(accident=false):void{
   state.committed=true;state.riskArmed=false;
   const gain=state.ticket.finalScore??0;
   state.bank+=gain;
-  const target=ROUND_TARGETS[state.round];
+  const target=roundGoal();
   const success=state.bank>=target;
   state.done=(!success && state.ticketIndex>=3)||(success && state.round>=8);
   if(success){
@@ -204,12 +206,13 @@ function loadRun():boolean{
     if(b.version!==4||!b.build||!b.ticket||!Array.isArray(b.build.plate)||b.build.plate.length!==16)return false;
     if(!Array.isArray(b.ticket.cells)||b.ticket.cells.length!==16||!Array.isArray(b.build.stamps))return false;
     if(!Array.isArray(b.build.items))b.build.items=[];
+    if(!b.difficulty)b.difficulty='challenge'; // pre-v1 saved runs had original hard curve
     for(const type of ['key','spark','sun','moon','vault'])if(typeof b.build.levels[type]!=='number')b.build.levels[type]=0;
     if(!['ticket','ticket-choice','reward','event','shop','ended'].includes(b.phase)||b.round<0||b.round>8||b.ticketIndex<1||b.ticketIndex>3)return false;
     if(urlSeed&&urlSeed!==b.seed)return false;
     Object.assign(state,{seed:b.seed,round:b.round,bank:b.bank,ticketIndex:b.ticketIndex,
       ticket:b.ticket,committed:b.committed,riskArmed:b.riskArmed,done:b.done,
-      build:b.build,phase:b.phase,offers:b.offers||[],roundConserved:!!b.roundConserved,itemPurchased:!!b.itemPurchased});
+      build:b.build,phase:b.phase,offers:b.offers||[],roundConserved:!!b.roundConserved,itemPurchased:!!b.itemPurchased,difficulty:b.difficulty});
     return true;
   }catch{return false;}
 }
@@ -293,7 +296,10 @@ function renderWorkshop():void{
       '<div class="work-card"><div class="work-card-title">'+(i+1)+' · '+d.name+
       '</div><p>'+d.effect+'</p><small>构筑方向：'+d.strategy+'</small>'+
       actionButton('选择 '+d.name,'ticket-'+d.id)+'</div>').join('');
-    content='<h2>选择本张刮刮乐</h2><p>第 '+(state.round+1)+' 轮 · 第 '+state.ticketIndex+'/3 张 · 三种票共用同一套16枚印版，不会暗中换中奖池。</p>'+
+    const difficultyChoice=state.round===0&&state.ticketIndex===1?
+      '<div class="work-options">'+actionButton('普通委托','mode-standard',state.difficulty==='standard',true)+
+      actionButton('高难挑战','mode-challenge',state.difficulty==='challenge',true)+'</div>':'';
+    content='<h2>选择本张刮刮乐</h2><p>第 '+(state.round+1)+' 轮 · 第 '+state.ticketIndex+'/3 张 · '+(state.difficulty==='challenge'?'高难挑战':'普通委托')+' · 三种票共用同一套16枚印版。</p>'+difficultyChoice+
       bossText+'<div class="work-cards">'+cards+'</div>'+
       '<p>选票后立即锁定布局；不同票型的刮力、压力和计分各不相同。</p>';
   }else if(state.phase==='event'){
@@ -353,7 +359,7 @@ function renderWorkshop():void{
         if(o.kind==='upgrade'&&o.symbol)return '<div class="work-card"><div class="work-card-title">② 升版 · '+SYMBOLS[o.symbol].name+'</div><p>本局永久提升该符号基础分 +4；当前 Lv.'+b.levels[o.symbol]+'/3。</p>'+actionButton('升级'+SYMBOLS[o.symbol].name,'reward-upgrade')+'</div>';
         return '<div class="work-card"><div class="work-card-title">③ 重印 · 调整符号配比</div><p>任选两枚非墨团，变为选定的自然符号，便于定向形成构筑。</p>'+actionButton('挑选重印实例','reprint-open')+'</div>';
       }).join('');
-      content='<h2>本轮过关！三选一改造</h2><p>本轮 '+state.bank+' / '+ROUND_TARGETS[state.round]+' 分 · 已奖励铜券。只能选择其中一项。</p>'+
+      content='<h2>本轮过关！三选一改造</h2><p>本轮 '+state.bank+' / '+roundGoal()+' 分 · 已奖励铜券。只能选择其中一项。</p>'+
         '<div class="work-cards">'+cards+'</div>'+actionButton('跳过，改领 2 铜券','reward-skip',false,true);
     }
   }else if(state.phase==='shop'){
@@ -379,8 +385,8 @@ function renderWorkshop():void{
      '<h3>升版服务（每店最多购买一次）</h3><div class="work-options">'+upgrades+'</div>'+
      actionButton('离开商店，进入第 '+(state.round+2)+' 轮','shop-next');
   }else{
-    const won=state.bank>=ROUND_TARGETS[state.round];
-    content='<h2>'+(won?'旅程通关！':'本轮挑战失败')+'</h2><p>第 '+(state.round+1)+' 轮 · '+state.bank+' / '+ROUND_TARGETS[state.round]+' 分</p>'+
+    const won=state.bank>=roundGoal();
+    content='<h2>'+(won?'旅程通关！':'本轮挑战失败')+'</h2><p>第 '+(state.round+1)+' 轮 · '+state.bank+' / '+roundGoal()+' 分</p>'+
       '<p>构筑：'+buildSummary(b)+' · 铜券 '+b.copper+'</p>'+
       '<p>'+(won?'你完成了全部九轮基础计分挑战。':'现有基础内容的目标仍待平衡调优。')+'</p>'+
       actionButton('重新开始旅程','run-reset');
@@ -429,7 +435,7 @@ function handleWorkshopAction(action:string):void{
     if(action==='swap-confirm'){
       try{
         if(swapSelection.length!==2)return;
-        state.ticket=swapTicket(state.ticket,swapSelection[0],swapSelection[1],swapMode);
+        state.ticket=swapTicket(state.ticket,swapSelection[0],swapSelection[1],swapMode,state.build);
         swapOpen=false;swapSelection=[];message='换位成功，本票当前来源的换位已使用。';
         draw();renderWorkshop();saveRun();
       }catch(e){showWorkshopError(e);}
@@ -513,6 +519,14 @@ function handleWorkshopAction(action:string):void{
     }catch(e){showWorkshopError(e);}
     return;
   }
+  if(state.phase==='ticket-choice'&&state.round===0&&state.ticketIndex===1&&action.startsWith('mode-')){
+    const chosen=action==='mode-challenge'?'challenge':'standard';
+    if(state.difficulty!==chosen){
+      state.difficulty=chosen;state.bank=0;state.build=createBuild();state.offers=[];
+      newTicket();
+    }
+    return;
+  }
   if(state.phase==='ticket-choice'&&action.startsWith('ticket-')){
     const id=action.slice('ticket-'.length) as TicketId;
     const candidates=ticketCandidates(state.seed,state.round,state.ticketIndex,b.plate,b.stamps);
@@ -590,14 +604,14 @@ function draw():void{
   const aura=new Laya.Sprite();aura.graphics.drawCircle(0,0,260,'#202c4a');
   aura.alpha=.45;aura.pos(685,0);scene.addChild(aura);
   txt(scene,48,34,'✦  刮 出 奇 迹',48,C.gold,510,'left',true);
-  txt(scene,48,96,'LUCK WORKSHOP · 肉鸽成长版',20,'#bec9dc',580);
+  txt(scene,48,96,'LUCK WORKSHOP · '+(state.difficulty==='challenge'?'高难挑战':'普通委托'),20,'#bec9dc',580);
   txt(scene,48,126,'第 '+(state.round+1)+'/9 轮 · 🪙 铜券 '+state.build.copper+' · '+buildSummary(state.build),18,C.mint,670);
   btn(scene,568,45,144,60,'重开', '#c2cee0',()=>reset());
   rect(scene,48,158,654,100,24,'#202d4a','#36466c');
   txt(scene,70,165,'本轮进度',20,C.muted,185);
-  txt(scene,70,195,state.bank+' / '+ROUND_TARGETS[state.round],44,C.gold,340,'left',true);
+  txt(scene,70,195,state.bank+' / '+roundGoal(),44,C.gold,340,'left',true);
   txt(scene,507,169,'第 '+state.ticketIndex+' / 3 张',28,C.text,175,'center',true);
-  txt(scene,511,207,'目标 '+ROUND_TARGETS[state.round]+' 分',20,C.muted,175,'center');
+  txt(scene,511,207,'目标 '+roundGoal()+' 分',20,C.muted,175,'center');
   rect(scene,48,276,654,734,24,C.paper,'#c6a67a');
   txt(scene,83,287,'✦  '+ticketDefinition(state.ticket.ticketType).name,37,'#5a3c2b',450,'left',true);
   txt(scene,490,297,'4 × 4 幸运票',21,'#91714f',175,'right',true);

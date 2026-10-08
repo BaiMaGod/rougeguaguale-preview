@@ -31,10 +31,11 @@ test('R12 crossing B12 and R13 parallel lines M+.5',()=>{
 test('R14 free stamp exchange independent of T09 and legal only on nonink revealed cells',()=>{
  const l=['gear','star',...standard.slice(2)];
  const t=reveal(ticket(l),[0,1]);
- const first=swapTicket(t,0,1,'stamp');
+ assert.throws(()=>swapTicket(t,0,1,'stamp'),/未装备/);
+ const first=swapTicket(t,0,1,'stamp',build('R14'));
  assert.equal(first.cells[0].symbol,'star');
  assert.equal(first.stampSwapUsed,true);
- assert.throws(()=>swapTicket(first,0,1,'stamp'));
+ assert.throws(()=>swapTicket(first,0,1,'stamp',build('R14')));
  assert.equal(first.freeSwapUsed,undefined);
 });
 test('R15 counts unique orthogonally adjacent gears at M+.15 per pair',()=>{

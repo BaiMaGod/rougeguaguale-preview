@@ -1,6 +1,6 @@
 /** Reproducible balance harness. No use of real-money mechanics. */
 import {createBuild,applyReward,grantRoundCopper,rewardOptions,shopOffer,buyStamp,buyUpgrade,availableUpgrades} from '../build/build.js';
-import {createTicket,shuffledPlate,scoutCell,activateCell,settleTicket,rowClues,ROUND_TARGETS,SYMBOLS} from '../build/rules.js';
+import {createTicket,shuffledPlate,scoutCell,activateCell,settleTicket,rowClues,ROUND_TARGETS,CHALLENGE_TARGETS,SYMBOLS} from '../build/rules.js';
 import {bossForRound,ticketCandidates,applyTicketChoice} from '../build/tickets.js';
 function seeded(seed){
  let x=2166136261>>>0;
@@ -16,7 +16,7 @@ function choose(t,policy,rng){
   const row=Math.floor(c.index/4);
   const line=t.cells.filter(v=>Math.floor(v.index/4)===row&&v.state==='active').length;
   const scout=c.state==='scouted';
-  // The following mode is an explicit upper bound, not a realizable player.
+  // This mode uses hidden symbols as a heuristic: not a realizable player and not a mathematical upper bound.
   if(policy==='oracle')return {index:c.index,points:({gem:70,moon:55,star:45,leaf:30,gear:28,bell:25,key:28,spark:25,sun:45,vault:20,prism:5,ink:-999}[c.symbol])+
     line*8+rng()};
   return {index:c.index,points:(scout?(c.symbol==='ink'?-1000:75):0)+clues[row].count*12+
@@ -87,7 +87,7 @@ function simulate(policy,seed,regime='auto',targets=ROUND_TARGETS){
 const N=Number(process.env.BALANCE_RUNS??80);
 if(!Number.isInteger(N)||N<1||N>1000)throw Error('BALANCE_RUNS must be 1..1000');
 const CURVES=[
- {name:'original',targets:ROUND_TARGETS},
+ {name:'original',targets:CHALLENGE_TARGETS},
  {name:'accessible',targets:[280,420,540,650,760,880,1010,1150,1300]},
  {name:'middle',targets:[280,440,580,700,850,1000,1180,1370,1600]},
  {name:'challenging',targets:[280,440,600,760,920,1100,1370,1620,1900]}
