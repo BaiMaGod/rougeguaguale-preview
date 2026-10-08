@@ -1,1 +1,41 @@
 :root{color-scheme:dark}*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#101526;font-family:system-ui,"Microsoft YaHei",sans-serif}#game-root{position:absolute;left:0;top:0;width:750px;height:1334px;transform-origin:left top;overflow:hidden;background:#141b32}#scratch-root{position:absolute;left:0;top:0;z-index:10;width:750px;height:1334px;pointer-events:none}#scratch-root canvas{pointer-events:auto}#load-error{position:fixed;z-index:100;inset:20% 5% auto;background:#4e2636;color:white;padding:25px;border-radius:16px;text-align:center}[hidden]{display:none!important}canvas{display:block}body{overscroll-behavior:none}
+
+#workshop-overlay{
+ position:absolute;inset:0;z-index:35;background:rgba(9,14,30,.84);
+ backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;
+ padding:38px 44px;pointer-events:auto;color:#f9f1e2;
+}
+#workshop-overlay.open{display:flex}
+.work-panel{
+ width:100%;max-height:100%;overflow-y:auto;overscroll-behavior:contain;
+ padding:30px 28px 34px;border:2px solid #b18c5e;border-radius:28px;
+ background:linear-gradient(155deg,#283651,#1a2540 75%);
+ box-shadow:0 28px 80px #050915aa;scrollbar-width:thin;
+}
+.work-top{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:20px;
+ color:#ffcf7d;border-bottom:1px solid #ffffff25;padding-bottom:17px}
+.work-top b{font-size:31px}.work-top span{font-size:19px}
+.work-panel h2{font-size:35px;line-height:1.3;color:#f7d08e;margin:4px 0 14px}
+.work-panel h3{font-size:24px;margin:21px 0 12px;color:#ffdc9b}
+.work-panel p{font-size:20px;line-height:1.45;color:#c9d5ea;margin:9px 0 17px}
+.work-cards{display:grid;gap:13px;margin:20px 0}
+.work-card{padding:17px 18px;border:1px solid #b8b9b74b;border-radius:17px;
+ background:linear-gradient(130deg,#344460,#23334f)}
+.work-card-title,.work-card b{display:block;font-size:27px;color:#fff3c6;margin-bottom:5px}
+.work-card small{display:block;color:#bfd7e9;font-size:19px;line-height:1.5}
+.work-card p{margin:7px 0 13px}
+.work-btn{display:block;width:100%;text-align:center;border:0;border-radius:13px;
+ background:linear-gradient(#ffe8ae,#e6b66b);box-shadow:0 4px 0 #86613c;
+ color:#29364b;font-weight:900;font-size:22px;min-height:57px;padding:11px 17px;
+ margin:9px 0;touch-action:manipulation}
+.work-btn.work-secondary{background:#394c69;color:#e6f1fd;border:1px solid #6686a8;box-shadow:none}
+.work-btn:disabled{opacity:.42;filter:grayscale(.8);box-shadow:none}
+.work-btn:not(:disabled):active{transform:translateY(2px);box-shadow:none}
+.work-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.work-options .work-btn{font-size:18px;min-height:54px}
+.work-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:15px 0}
+.work-cell{border:1px solid #a3b0c5;border-radius:9px;padding:13px 3px;
+ background:#465778;color:white;font-size:16px;min-height:55px}
+.work-cell.selected{background:#eab974;color:#2a3241;border:3px solid #fff1c8;font-weight:900}
+.work-cell:disabled{opacity:.32}
+.work-error{color:#ffb0aa!important;font-weight:700}

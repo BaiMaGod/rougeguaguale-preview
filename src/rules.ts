@@ -1,3 +1,4 @@
+import type {Build} from './build.js';
 export type SymbolKey = 'star' | 'bell' | 'leaf' | 'gear' | 'gem' | 'ink';
 export type CellState = 'hidden' | 'scouted' | 'active';
 export type TicketStatus = 'active' | 'accident' | 'settled';
@@ -14,7 +15,7 @@ export interface ScoreResult {
   breakdown: {
     activeCount: number; symbolBase: number; gearBase: number;
     tripleGroups: number; tripleBase: number; lineCount: number; lineBase: number;
-    crafterBase: number; ticketBase: number; bellMultiplier: number;
+    crafterBase: number; ticketBase: number; buildBonus:number; bellMultiplier: number;
     tripleMultiplier: number; varietyMultiplier: number; extraPenalty: number;
   };
 }
@@ -44,9 +45,9 @@ function mulberry32(seed: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-export function shuffledPlate(seed: string): SymbolKey[] {
+export function shuffledPlate(seed: string, source:readonly SymbolKey[]=INITIAL_PLATE): SymbolKey[] {
   const random = mulberry32(hashSeed(String(seed)));
-  const plate = [...INITIAL_PLATE];
+  const plate = [...source];
   for (let i=plate.length-1;i>0;i--) {
     const j = Math.floor(random()*(i+1));
     [plate[i],plate[j]] = [plate[j],plate[i]];
@@ -133,12 +134,12 @@ function gearAdjacencyBonus(ticket:Ticket):number{
   }
   return bonus;
 }
-export function calculateScore(ticket:Ticket,{accident=ticket.status==='accident'}:{accident?:boolean}={}):ScoreResult{
+export function calculateScore(ticket:Ticket,{accident=ticket.status==='accident',build}:{accident?:boolean;build?:Build}={}):ScoreResult{
   const active=ticket.cells.filter(c=>c.state==='active');
   const counts=new Map<SymbolKey,number>();
   let symbolBase=0,bellMultiplier=0;
   for(const cell of active){
-    const sym=cell.symbol,def=SYMBOLS[sym];symbolBase+=def.base;
+    const sym=cell.symbol,def=SYMBOLS[sym];symbolBase+=def.base+(sym!=='ink'?(build?.levels[sym]??0)*4:0);
     if(sym!=='ink') counts.set(sym,(counts.get(sym)??0)+1);
     if(sym==='bell') bellMultiplier+=.10;
   }
@@ -150,20 +151,30 @@ export function calculateScore(ticket:Ticket,{accident=ticket.status==='accident
   const crafterBase=(counts.get('star')??0)>0?8:0;
   const ticketBase=active.length>=6?10:0;
   const extraPenalty=ticket.extraUsed*.25;
-  const B=symbolBase+gearBase+tripleBase+lineBase+crafterBase+ticketBase;
+  let buildBonus=0;
+  if(build){
+    const owned=new Set(build.stamps);
+    if(owned.has('R01')) buildBonus+=(counts.get('star')??0)*4;
+    if(owned.has('R09')) buildBonus+=lineCount*16;
+    if(owned.has('R41') && counts.size>=4)buildBonus+=20;
+    if(owned.has('R02'))buildBonus+=tripleGroups*12;
+    if(owned.has('R10'))buildBonus+=active.filter(c=>c.symbol!=='ink'&&[0,3,12,15].includes(c.index)).length*8;
+    if(owned.has('R33'))buildBonus+=(counts.get('gem')??0)*6;
+  }
+  const B=symbolBase+gearBase+tripleBase+lineBase+crafterBase+ticketBase+buildBonus;
   const M=Math.max(.5,1+bellMultiplier+tripleMultiplier+varietyMultiplier-extraPenalty);
   const X=1,score=accident?Math.floor(B*.40):Math.floor(B*M*X+1e-9);
   return {score,B,M,X,accident,breakdown:{
     activeCount:active.length,symbolBase,gearBase,tripleGroups,tripleBase,lineCount,
-    lineBase,crafterBase,ticketBase,bellMultiplier,tripleMultiplier,
+    lineBase,crafterBase,ticketBase,buildBonus,bellMultiplier,tripleMultiplier,
     varietyMultiplier,extraPenalty
   }};
 }
-export function settleTicket(ticket:Ticket):Ticket{
+export function settleTicket(ticket:Ticket,build?:Build):Ticket{
   if(ticket.settled) return cloneTicket(ticket);
   if(!ticket.activatedOrder.length) throw new Error('请先刮开至少一格');
   const next=cloneTicket(ticket),accident=next.status==='accident';
-  next.finalScore=calculateScore(next,{accident}).score;
+  next.finalScore=calculateScore(next,{accident,build}).score;
   next.status=accident?'accident':'settled';next.settled=true;
   return next;
 }
