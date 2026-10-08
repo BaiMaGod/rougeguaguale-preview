@@ -1,7 +1,7 @@
 import type {SymbolKey,Ticket} from './rules.js';
 
 export type TicketId='T01'|'T02'|'T03'|'T04'|'T05'|'T06'|'T07'|'T08'|'T12';
-export type BossId='B01'|'B02'|'B03'|'B04'|'B05'|'B06';
+export type BossId='B01'|'B02'|'B03'|'B04'|'B05'|'B06'|'B07'|'B08'|'B09';
 export interface TicketDef {id:TicketId;name:string;effect:string;strategy:string;}
 export const TICKET_TYPES:readonly TicketDef[]=[
  {id:'T01',name:'街角经典',effect:'刮开至少 6 格，基础分 +10',strategy:'入门稳定'},
@@ -20,7 +20,10 @@ export const BOSSES:Readonly<Record<BossId,{name:string;effect:string}>>={
  B03:{name:'哑钟巡游者',effect:'每枚铃铛的基础 M 加数从 0.10 降至 0.05'},
  B04:{name:'弯尺总管',effect:'每张票所有连线基础分和印章连线加分合计减半'},
  B05:{name:'吃墨蜗牛',effect:'前两枚激活的自然符号自身基础分为 0'},
- B06:{name:'雾面玻璃匠',effect:'只显示第 1 行线索；每张票免费显影 +1'}
+ B06:{name:'雾面玻璃匠',effect:'只显示第 1 行线索；每张票免费显影 +1'},
+ B07:{name:'星光税务官',effect:'本票 M 额外 -0.75（仍遵守 M 最低 0.50）'},
+ B08:{name:'褪金收藏家',effect:'满足条件的最大一枚印章 X 倍率上限 ×1.50'},
+ B09:{name:'断墨巨像',effect:'每张票常规刮力 -1；本轮第一张票显影额外 +2'}
 };
 function hash(text:string):number{
  let h=2166136261>>>0;
@@ -30,6 +33,7 @@ function hash(text:string):number{
 export function bossForRound(round:number,seed:string):BossId|undefined{
  if(round===2)return (['B01','B02','B03'] as const)[hash(seed+':first-act-boss')%3];
  if(round===5)return (['B04','B05','B06'] as const)[hash(seed+':second-act-boss')%3];
+ if(round===8)return (['B07','B08','B09'] as const)[hash(seed+':third-act-boss')%3];
  return undefined;
 }
 export function ticketDefinition(id:TicketId):TicketDef{
@@ -49,16 +53,17 @@ export function ticketCandidates(seed:string,round:number,number:number,plate:re
  }
  return [ticketDefinition('T01'),...shuffled.slice(0,2)];
 }
-export function applyTicketChoice(ticket:Ticket,id:TicketId,bossId?:BossId):Ticket{
+export function applyTicketChoice(ticket:Ticket,id:TicketId,bossId?:BossId,firstInRound=false):Ticket{
  ticketDefinition(id);
  if(ticket.activatedOrder.length||ticket.settled||ticket.status!=='active'||
     ticket.cells.some(c=>c.state!=='hidden'))throw new Error('已刮开的票不能更换票型');
  const next={...ticket,cells:ticket.cells.map(c=>({...c})),activatedOrder:[...ticket.activatedOrder]};
  next.ticketType=id;
  next.bossId=bossId;
- next.regularRemaining=8+(id==='T07'?1:id==='T08'?-1:id==='T12'?2:0);
+ next.regularRemaining=8+(id==='T07'?1:id==='T08'?-1:id==='T12'?2:0)-(bossId==='B09'?1:0);
  next.extraRemaining=id==='T12'?0:2;
  next.pressure=(id==='T07'?1:0)+(bossId==='B01'?1:0);
  if(bossId==='B06')next.scoutRemaining+=1;
+ if(bossId==='B09'&&firstInRound)next.scoutRemaining+=2;
  return next;
 }

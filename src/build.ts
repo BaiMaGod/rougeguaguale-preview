@@ -10,7 +10,10 @@ export const STAMPS:readonly StampDef[]=[
  {id:'R41',name:'彩墨盒',description:'激活至少 4 种自然符号，基础分 +20',price:6,tag:'杂彩'},
  {id:'R02',name:'三枚一组',description:'每组三响额外基础分 +12',price:6,tag:'同色'},
  {id:'R10',name:'角标',description:'每个已刮开的非墨团角格基础分 +8',price:6,tag:'连线'},
- {id:'R33',name:'宝石底座',description:'每枚已刮出的宝石基础分 +6',price:6,tag:'宝石'}
+ {id:'R33',name:'宝石底座',description:'每枚已刮出的宝石基础分 +6',price:6,tag:'宝石'},
+ {id:'R08',name:'满堂星火',description:'本票至少3组三响时 X×2.00',price:16,tag:'三响'},
+ {id:'R16',name:'经纬印刷机',description:'至少一条横线和一条竖线时 X×1.80',price:16,tag:'几何'},
+ {id:'R23',name:'留白的价值',description:'正常收手尚余2次常规刮力时 X×1.40',price:10,tag:'早收手'}
 ];
 export interface Build {
   plate:SymbolKey[];levels:Record<BasicSymbol,number>;
@@ -55,7 +58,7 @@ export function legalReprint(b:Build,sourceIndices:number[],target:BasicSymbol):
   after.filter(s=>s==='ink').length>=1 && after.length===16;
 }
 export function rewardOptions(b:Build,round:number,seed:string):RewardOption[]{
- const stamps=round===0?STAMPS.filter(s=>['R01','R09','R41'].includes(s.id)):STAMPS;
+ const stamps=round===0?STAMPS.filter(s=>['R01','R09','R41'].includes(s.id)):STAMPS.filter(s=>round>=6||s.price===6);
  const available=rotated(stamps.filter(s=>!b.stamps.includes(s.id)),seed+':stamp');
  const upgrades=rotated(availableUpgrades(b),seed+':upgrade');
  const options:RewardOption[]=[];
@@ -90,7 +93,7 @@ export function grantRoundCopper(b:Build,round:number,ticketsUsed:number):Build{
 }
 export function skipReward(b:Build):Build{const out=copyBuild(b);out.copper+=2;return out;}
 export function shopOffer(b:Build,round:number,seed:string):ShopOffer{
- return {stampIds:rotated(STAMPS.filter(s=>!b.stamps.includes(s.id)),seed+':shop:'+round).slice(0,3).map(s=>s.id)};
+ return {stampIds:rotated(STAMPS.filter(s=>!b.stamps.includes(s.id)&&(round>=6||s.price===6)),seed+':shop:'+round).slice(0,3).map(s=>s.id)};
 }
 export function buyStamp(b:Build,stampId:string):Build{
  const stamp=getStamp(stampId);

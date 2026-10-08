@@ -2,7 +2,7 @@ import {SYMBOLS, ROUND_TARGETS, createTicket, shuffledPlate, scoutCell, activate
 import {createBuild, rewardOptions, applyReward, grantRoundCopper, skipReward, shopOffer, buyStamp, buyUpgrade, availableUpgrades, legalReprint, getStamp, upgradePrice, buildSummary, type BasicSymbol, type Build, type RewardOption} from './build.js';
 import {ScratchLayer} from './scratch.js';
 import {applyTicketChoice,bossForRound,BOSSES,ticketCandidates,ticketDefinition,type TicketId} from './tickets.js';
-import {itemDef,itemOffer,buyItem,useItem,type ItemId} from './items.js';
+import {itemDef,itemOffer,buyItem,useItem,canUseItem,isTargetedItem,type ItemTarget,type ItemId} from './items.js';
 
 declare const Laya: any;
 const W=750,H=1334;
@@ -97,7 +97,7 @@ function flash(index:number,symbol:SymbolKey):void{
 }
 function announce(text:string):void{message=text;toastText=text;toastSerial++;draw();}
 function newTicket():void{
-  toolsOpen=false;
+  toolsOpen=false;selectedItemIndex=null;selectedTarget={};
   foil.clear();
   const ticketSeed=state.seed+':r'+(state.round+1)+':t'+state.ticketIndex;
   state.ticket=createTicket(ticketSeed,shuffledPlate(ticketSeed,state.build.plate));
@@ -139,7 +139,7 @@ function onScratch(index:number):void{
   if(state.ticket.regularRemaining<=0 && !state.riskArmed){draw();return;}
   const old=state.ticket;
   try{
-    state.ticket=activateCell(old,index,{extra:old.regularRemaining<=0});
+    state.ticket=activateCell(old,index,{extra:old.regularRemaining<=0,build:state.build});
     const symbol=state.ticket.cells[index].symbol;
     const score=calculateScore(state.ticket,{build:state.build});
     message=SYMBOLS[symbol].name+'！当前可收 '+score.score+' 分'+(state.ticket.pressure?' · 压力 '+state.ticket.pressure+'/3':'');
@@ -169,6 +169,8 @@ function next():void{
 }
 
 let toolsOpen=false;
+let selectedItemIndex:number|null=null;
+let selectedTarget:ItemTarget={};
 const workshop=document.createElement('div');
 workshop.id='workshop-overlay';
 root.appendChild(workshop);
@@ -217,16 +219,52 @@ function renderWorkshop():void{
   let content='';
   if(state.phase==='ticket'&&toolsOpen){
     const bag=b.items??[];
-    const cards=bag.map((id,i)=>{
-      const item=itemDef(id);
-      return '<div class="work-card"><div class="work-card-title">'+item.icon+' '+item.name+
-        '</div><p>'+item.description+'</p>'+
-        actionButton('使用 '+item.name,'tool-use-'+i,state.ticket.itemsUsed!==undefined&&state.ticket.itemsUsed>=2)+'</div>';
-    }).join('');
-    content='<h2>🧰 随身工具包</h2><p>已装 '+bag.length+'/2 件，本张票已使用 '+
-      (state.ticket.itemsUsed??0)+'/2 件。工具使用成功才会消耗。</p>'+
-      '<div class="work-cards">'+(cards||'<p>背包为空。可以在通关后的商店购买工具。</p>')+'</div>'+
-      actionButton('返回刮刮乐','tool-close',false,true);
+    let body='';
+    const pending=selectedItemIndex===null?undefined:bag[selectedItemIndex];
+    if(pending&&isTargetedItem(pending)){
+      const item=itemDef(pending);
+      let choices='';
+      if(pending==='I04'){
+        choices=[0,1,2,3].map(row=>{
+          const legal=state.ticket.cells.some(c=>Math.floor(c.index/4)===row&&c.state!=='active');
+          return actionButton('第 '+(row+1)+' 行','tool-row-'+row,!legal,selectedTarget.row!==row);
+        }).join('');
+      }else if(pending==='I05'){
+        choices=(['star','bell','leaf','gear','gem'] as BasicSymbol[]).map(sym=>
+          actionButton(SYMBOLS[sym].icon+' '+SYMBOLS[sym].name,'tool-symbol-'+sym,false,selectedTarget.symbol!==sym)).join('');
+      }else{
+        choices=state.ticket.cells.map((cell,i)=>{
+          const legal=pending==='I08'?cell.state==='active'&&cell.symbol!=='ink':cell.state==='hidden';
+          const selected=selectedTarget.cell===i||selectedTarget.second===i;
+          return '<button class="work-cell '+(selected?'selected':'')+'"'+(!legal?' disabled':'')+
+            ' data-action="tool-cell-'+i+'">'+String.fromCharCode(65+i%4)+(Math.floor(i/4)+1)+
+            ' · '+(cell.state==='active'?SYMBOLS[cell.symbol].name:cell.state==='scouted'?'已显影':'未刮')+'</button>';
+        }).join('');
+      }
+      const ready=pending==='I04'?selectedTarget.row!==undefined:
+        pending==='I05'?!!selectedTarget.symbol:
+        pending==='I08'?selectedTarget.cell!==undefined&&selectedTarget.second!==undefined:
+        selectedTarget.cell!==undefined;
+      const info=pending==='I08'?'分别选择两个已激活且不是墨团的格子':
+        pending==='I09'?'选择一格尚未显影的银箔':
+        pending==='I04'?'选择想要免费显影的行':'指定本票增加基础分的自然符号';
+      body='<h2>'+item.icon+' '+item.name+'</h2><p>'+info+'。点击确认后才会消耗道具。</p>'+
+        '<div class="'+(pending==='I04'||pending==='I05'?'work-options':'work-grid')+'">'+choices+'</div>'+
+        actionButton('确认使用 '+item.name,'tool-confirm',!ready)+
+        actionButton('返回工具列表','tool-back',false,true);
+    }else{
+      const cards=bag.map((id,i)=>{
+        const item=itemDef(id);
+        return '<div class="work-card"><div class="work-card-title">'+item.icon+' '+item.name+
+          '</div><p>'+item.description+'</p>'+
+          actionButton('使用 '+item.name,'tool-use-'+i,!canUseItem(state.ticket,id))+'</div>';
+      }).join('');
+      body='<h2>🧰 随身工具包</h2><p>已装 '+bag.length+'/2 件，本张票已使用 '+
+        (state.ticket.itemsUsed??0)+'/2 件。工具使用成功才会消耗。</p>'+
+        '<div class="work-cards">'+(cards||'<p>背包为空。可以在通关后的商店购买工具。</p>')+'</div>'+
+        actionButton('返回刮刮乐','tool-close',false,true);
+    }
+    content=body;
   }else if(state.phase==='ticket-choice'){
     const boss=bossForRound(state.round,state.seed);
     const candidates=ticketCandidates(state.seed,state.round,state.ticketIndex,b.plate);
@@ -317,20 +355,46 @@ function handleWorkshopAction(action:string):void{
   if(action==='run-reset'){inReprint=false;reset();return;}
   if(state.phase==='ticket'&&toolsOpen){
     if(action==='tool-close'){
-      toolsOpen=false;draw();renderWorkshop();return;
+      toolsOpen=false;selectedItemIndex=null;selectedTarget={};
+      draw();renderWorkshop();return;
+    }
+    if(action==='tool-back'){selectedItemIndex=null;selectedTarget={};renderWorkshop();return;}
+    if(action.startsWith('tool-row-')){
+      selectedTarget={row:Number(action.slice('tool-row-'.length))};renderWorkshop();return;
+    }
+    if(action.startsWith('tool-symbol-')){
+      selectedTarget={symbol:action.slice('tool-symbol-'.length) as BasicSymbol};renderWorkshop();return;
+    }
+    if(action.startsWith('tool-cell-')){
+      const index=Number(action.slice('tool-cell-'.length));
+      const id=selectedItemIndex===null?undefined:b.items?.[selectedItemIndex];
+      if(id==='I08'){
+        if(selectedTarget.cell===index)selectedTarget={second:selectedTarget.second};
+        else if(selectedTarget.second===index)selectedTarget={cell:selectedTarget.cell};
+        else if(selectedTarget.cell===undefined)selectedTarget={cell:index};
+        else selectedTarget={cell:selectedTarget.cell,second:index};
+      }else selectedTarget={cell:index};
+      renderWorkshop();return;
     }
     if(action.startsWith('tool-use-')){
       const index=Number(action.slice('tool-use-'.length));
       const id=b.items?.[index];
       if(!id)return;
-      try{
-        const result=useItem(b,state.ticket,id);
-        state.build=result.build;state.ticket=result.ticket;
-        if(id==='I03')state.riskArmed=false;
-        message=itemDef(id).name+' 已使用！';
-        toolsOpen=false;draw();renderWorkshop();saveRun();
-      }catch(e){showWorkshopError(e);}
-    }
+      if(isTargetedItem(id)){
+        selectedItemIndex=index;selectedTarget={};renderWorkshop();return;
+      }
+      selectedItemIndex=index;
+    }else if(action!=='tool-confirm')return;
+    const id=selectedItemIndex===null?undefined:b.items?.[selectedItemIndex];
+    if(!id)return;
+    try{
+      const result=useItem(b,state.ticket,id,selectedTarget);
+      state.build=result.build;state.ticket=result.ticket;
+      if(id==='I03')state.riskArmed=false;
+      message=itemDef(id).name+' 已使用！';
+      selectedItemIndex=null;selectedTarget={};toolsOpen=false;
+      draw();renderWorkshop();saveRun();
+    }catch(e){showWorkshopError(e);}
     return;
   }
   if(state.phase==='ticket-choice'&&action.startsWith('ticket-')){
@@ -338,7 +402,7 @@ function handleWorkshopAction(action:string):void{
     const candidates=ticketCandidates(state.seed,state.round,state.ticketIndex,b.plate);
     if(!candidates.some(candidate=>candidate.id===id))return;
     try{
-      state.ticket=applyTicketChoice(state.ticket,id,bossForRound(state.round,state.seed));
+      state.ticket=applyTicketChoice(state.ticket,id,bossForRound(state.round,state.seed),state.ticketIndex===1);
       state.phase='ticket';
       message='已选 '+ticketDefinition(id).name+'：'+ticketDefinition(id).effect;
       draw();renderWorkshop();saveRun();

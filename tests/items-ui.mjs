@@ -19,7 +19,8 @@ async function restore(fixture){
 try{
  const build=createBuild();build.copper=12;
  let seed='tool-shop';
- while(itemOffer(seed,0)!=='I02')seed+='a';
+ for(let i=0;i<500&&itemOffer(seed,0)!=='I02';i++)seed='tool-shop-'+i;
+ assert.equal(itemOffer(seed,0),'I02','a deterministic seed should offer scout fluid');
  await restore({version:4,seed,round:0,bank:280,ticketIndex:2,
    ticket:createTicket('tool-shop-1'),committed:true,riskArmed:false,
    done:false,build,phase:'shop',offers:[],itemPurchased:false});

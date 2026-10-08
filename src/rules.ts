@@ -10,6 +10,8 @@ export interface Ticket {
   regularRemaining: number; extraRemaining: number; scoutRemaining: number;
   pressure: number; extraUsed: number; activatedOrder: number[];
   itemsUsed?:number;itemMultiplier?:number;itemIndependent?:number;
+  inkColor?:Exclude<SymbolKey,'ink'>;annotatedCell?:number;inkGuard?:boolean;
+  extraDiscount?:boolean;extraPenaltyTotal?:number;echoPending?:boolean;echoBonus?:number;
   status: TicketStatus; finalScore: number | null; settled: boolean;
 }
 export interface ScoreResult {
@@ -63,7 +65,7 @@ export function createTicket(seed='demo-1', layoutOverride: SymbolKey[] | null=n
     seed:String(seed), ticketType:'T01', crafter:'C01',
     cells:layout.map((symbol,index)=>({index,symbol,state:'hidden' as CellState})),
     regularRemaining:8,extraRemaining:2,scoutRemaining:1,pressure:0,
-    extraUsed:0,itemsUsed:0,itemMultiplier:0,itemIndependent:1,activatedOrder:[],status:'active',finalScore:null,settled:false
+    extraUsed:0,itemsUsed:0,itemMultiplier:0,itemIndependent:1,extraPenaltyTotal:0,echoBonus:0,activatedOrder:[],status:'active',finalScore:null,settled:false
   };
 }
 export function cloneTicket(ticket: Ticket): Ticket {
@@ -81,7 +83,7 @@ export function scoutCell(ticket: Ticket,index: number): Ticket {
   cell.state='scouted'; next.scoutRemaining-=1;
   return next;
 }
-export function activateCell(ticket: Ticket,index: number,{extra=false}: {extra?:boolean}={}):Ticket {
+export function activateCell(ticket: Ticket,index: number,{extra=false,build}: {extra?:boolean;build?:Build}={}):Ticket {
   assertPlayable(ticket);
   const next=cloneTicket(ticket);
   const cell=next.cells[index]; if(!cell) throw new Error('无效格子');
@@ -90,13 +92,21 @@ export function activateCell(ticket: Ticket,index: number,{extra=false}: {extra?
     if(next.regularRemaining>0) throw new Error('免费次数尚未用完');
     if(next.extraRemaining<=0) throw new Error('额外刮开已用完');
     next.extraRemaining-=1;next.extraUsed+=1;next.pressure+=1;
+    next.extraPenaltyTotal=(next.extraPenaltyTotal??ticket.extraUsed*.25)+(next.extraDiscount?.125:.25);
   }else{
     if(next.regularRemaining<=0) throw new Error('免费刮开次数已用完');
     next.regularRemaining-=1;
   }
   cell.state='active';next.activatedOrder.push(index);
   if(cell.symbol==='leaf') next.pressure=Math.max(0,next.pressure-1);
-  if(cell.symbol==='ink') next.pressure+=1;
+  if(cell.symbol==='ink'){
+    if(next.inkGuard)next.inkGuard=false;
+    else next.pressure+=1;
+  }
+  if(next.echoPending&&cell.symbol!=='ink'){
+    next.echoBonus=(next.echoBonus??0)+symbolInstanceBase(next,index,build);
+    next.echoPending=false;
+  }
   if(next.pressure>=3){next.status='accident';next.finalScore=calculateScore(next,{accident:true}).score;}
   return next;
 }
@@ -114,6 +124,16 @@ export function rowClues(ticket:Ticket):{label:string;symbol:SymbolKey|null;coun
     clues.push({symbol,count,tied,label:SYMBOLS[symbol].name+' ×'+count+(tied?'（并列）':'')});
   }
   return clues;
+}
+function symbolInstanceBase(ticket:Ticket,index:number,build?:Build):number{
+  const cell=ticket.cells[index];
+  const sym=cell.symbol;
+  let base=SYMBOLS[sym].base+(sym!=='ink'?(build?.levels[sym]??0)*4:0);
+  if(ticket.ticketType==='T08'&&sym!=='ink')base+=4;
+  if(ticket.inkColor===sym&&sym!=='ink')base+=6;
+  if(ticket.bossId==='B02'&&[0,3,12,15].includes(index))base=0;
+  if(ticket.bossId==='B05'&&ticket.activatedOrder.filter(i=>ticket.cells[i].symbol!=='ink').slice(0,2).includes(index))base=0;
+  return base;
 }
 function validLines(ticket:Ticket):number[][]{
   const lines:number[][]=[];
@@ -143,11 +163,8 @@ export function calculateScore(ticket:Ticket,{accident=ticket.status==='accident
   let symbolBase=0,bellMultiplier=0;
   for(const cell of active){
     const sym=cell.symbol,def=SYMBOLS[sym];
-    let base=def.base+(sym!=='ink'?(build?.levels[sym]??0)*4:0);
-    if(type==='T08' && sym!=='ink')base+=4;
-    if(ticket.bossId==='B02' && [0,3,12,15].includes(cell.index))base=0;
-    if(ticket.bossId==='B05' && ticket.activatedOrder.filter(i=>ticket.cells[i].symbol!=='ink').slice(0,2).includes(cell.index))base=0;
-    symbolBase+=base;
+    symbolBase+=symbolInstanceBase(ticket,cell.index,build);
+    if(ticket.annotatedCell===cell.index && sym!=='ink')symbolBase+=12;
     if(sym!=='ink') counts.set(sym,(counts.get(sym)??0)+1);
     if(sym==='bell') bellMultiplier+=ticket.bossId==='B03'?.05:.10;
   }
@@ -174,7 +191,7 @@ export function calculateScore(ticket:Ticket,{accident=ticket.status==='accident
   const varietyMultiplier=[...counts.keys()].filter(k=>SYMBOLS[k].natural).length>=4?(type==='T05'?.60:.25):0;
   const crafterBase=(counts.get('star')??0)>0?8:0;
   const ticketBase=type==='T01'&&active.length>=6?10:0;
-  const extraPenalty=ticket.extraUsed*.25;
+  const extraPenalty=ticket.extraPenaltyTotal??ticket.extraUsed*.25;
   let buildBonus=0;
   if(build){
     const owned=new Set(build.stamps);
@@ -185,9 +202,18 @@ export function calculateScore(ticket:Ticket,{accident=ticket.status==='accident
     if(owned.has('R10'))buildBonus+=active.filter(c=>c.symbol!=='ink'&&[0,3,12,15].includes(c.index)).length*8;
     if(owned.has('R33'))buildBonus+=(counts.get('gem')??0)*6;
   }
-  const B=symbolBase+gearBase+tripleBase+lineBase+crafterBase+ticketBase+buildBonus;
-  const M=Math.max(.5,1+bellMultiplier+tripleMultiplier+varietyMultiplier-extraPenalty-(type==='T12'?.20:0)+(ticket.itemMultiplier??0));
-  const X=ticket.itemIndependent??1;
+  const B=symbolBase+gearBase+tripleBase+lineBase+crafterBase+ticketBase+buildBonus+(ticket.echoBonus??0);
+  const M=Math.max(.5,1+bellMultiplier+tripleMultiplier+varietyMultiplier-extraPenalty-(type==='T12'?.20:0)+(ticket.itemMultiplier??0)-(ticket.bossId==='B07'?.75:0));
+  const stampX:number[]=[];
+  if(build){
+    if(build.stamps.includes('R08')&&tripleGroups>=3)stampX.push(2);
+    if(build.stamps.includes('R16')&&lines.some(l=>l[1]-l[0]===1)&&lines.some(l=>l[1]-l[0]===4))stampX.push(1.8);
+    if(build.stamps.includes('R23')&&ticket.regularRemaining>=2)stampX.push(1.4);
+  }
+  if(ticket.bossId==='B08'&&stampX.length){
+    const top=stampX.indexOf(Math.max(...stampX));stampX[top]=Math.min(stampX[top],1.5);
+  }
+  const X=(ticket.itemIndependent??1)*stampX.reduce((result,value)=>result*value,1);
   const score=accident?Math.floor(B*.40):Math.floor(B*M*X+1e-9);
   return {score,B,M,X,accident,breakdown:{
     activeCount:active.length,symbolBase,gearBase,tripleGroups,tripleBase,lineCount,
