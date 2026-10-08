@@ -61,6 +61,7 @@ jobs:
           node tests/progression-ui.mjs
           node tests/items-ui.mjs
           node tests/advanced-items-ui.mjs
+          node tests/expansion-ui.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
