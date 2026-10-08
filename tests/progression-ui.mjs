@@ -2,6 +2,7 @@ import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 import {createBuild,grantRoundCopper} from '../build/build.js';
 import {createTicket} from '../build/rules.js';
+import {bossForRound,BOSSES} from '../build/tickets.js';
 
 function fixture(){
  const ticket=createTicket('fixture-first');
@@ -72,4 +73,23 @@ try{
  assert.equal(run.round,1);
  assert.equal(run.build.stamps.length,2);
  console.log('PROGRESSION UI PASS: reward choice, copper store, purchase, paid plate upgrade, next round, save/restore');
+ const bossSeed='fixture-boss-ui';
+ const bossId=bossForRound(2,bossSeed);
+ assert.ok(bossId);
+ await page.evaluate(data=>{
+   localStorage.setItem('foil-run-v4',JSON.stringify(data));
+ },{version:4,seed:bossSeed,round:2,bank:0,ticketIndex:1,
+   ticket:createTicket('boss-round'),committed:false,riskArmed:false,
+   done:false,build:createBuild(),phase:'ticket-choice',offers:[]});
+ await page.reload();
+ await page.getByRole('heading',{name:'选择本张刮刮乐'}).waitFor();
+ await page.getByText('首领 '+BOSSES[bossId].name,{exact:false}).waitFor();
+ await page.getByRole('button',{name:'选择 街角经典'}).click();
+ const bossState=await page.evaluate(()=>JSON.parse(localStorage.getItem('foil-run-v4')));
+ assert.equal(bossState.ticket.bossId,bossId);
+ assert.equal(bossState.ticket.ticketType,'T01');
+ assert.equal(bossState.ticket.pressure,bossId==='B01'?1:0);
+ assert.equal(await page.locator('#workshop-overlay.open').count(),0);
+ assert.deepEqual(errors,[]);
+ console.log('BOSS UI PASS: first-act boss visible before selection, modifier attached, play enabled');
 }finally{await browser.close();}
