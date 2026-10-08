@@ -60,6 +60,7 @@ try{
 
  const sb=createBuild();sb.items=['I08','I05'];
  const ticket=createTicket('v07-swap');
+ ticket.cells[0].symbol='star';
  ticket.cells[1].symbol='bell';
  ticket.cells[0].state='active';ticket.cells[1].state='active';
  ticket.activatedOrder=[0,1];ticket.regularRemaining=6;
