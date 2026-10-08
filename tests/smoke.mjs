@@ -32,6 +32,16 @@ try {
     await page.mouse.up();
   }
   assert.equal(await foils.count(),15,'scratching foil must reveal one LayaAir cell');
+  // A scratched symbol should be bankable and the next ticket should fully reset its foil.
+  const rootRect=await page.locator('#game-root').boundingBox();
+  assert.ok(rootRect,'game viewport');
+  const s=rootRect.width/750;
+  await page.mouse.click(rootRect.x+205*s,rootRect.y+1205*s);
+  await page.waitForFunction(()=>
+    [...document.querySelectorAll('#scratch-root canvas')].length===15 &&
+    [...document.querySelectorAll('#scratch-root canvas')].every(el=>el.style.pointerEvents==='none'),null,{timeout:5000});
+  await page.mouse.click(rootRect.x+375*s,rootRect.y+1285*s);
+  await page.waitForFunction(()=>document.querySelectorAll('#scratch-root canvas').length===16,null,{timeout:5000});
   assert.deepEqual(errors,[],'there should be no browser JS errors');
   await page.screenshot({path:'scratch-smoke.png'});
   console.log('BROWSER SMOKE PASS: 16 foil cells; pointer dragging reveals a cell; no JS errors');
