@@ -93,9 +93,10 @@ function flash(index:number,symbol:SymbolKey):void{
 }
 function announce(text:string):void{message=text;toastText=text;toastSerial++;draw();}
 function newTicket():void{
+  foil.clear();
   state.ticket=createTicket(state.seed+':r'+(state.round+1)+':t'+state.ticketIndex);
   state.committed=false;state.riskArmed=false;state.done=false;
-  message='按住银色格来回擦动；刮开超过一半才能揭晓！';
+  message='像真实刮刮乐一样来回刮，银粉会随手势飞散。';
   draw();
 }
 function reset():void{
@@ -133,7 +134,8 @@ function onScratch(index:number):void{
     if(state.ticket.status==='accident')finishTicket(true);
     draw();
     flash(index,symbol);
-    sound(symbol==='ink'||state.ticket.status==='accident'?'bad':'scratch');
+    if(symbol==='ink'||state.ticket.status==='accident') sound('bad');
+    else if(symbol==='gem') sound('gain');
   }catch(e){message=e instanceof Error?e.message:'操作失败';draw();}
 }
 function hint():void{
@@ -152,13 +154,13 @@ function next():void{
   state.ticketIndex++;newTicket();
 }
 function draw():void{
-  hitZones=[];scene.removeChildren();foil.clear();
+  hitZones=[];scene.removeChildren();foil.beginFrame();
   scene.graphics.clear();scene.graphics.drawRect(0,0,W,H,C.bg);
   // Warm floating decoration outside play surface.
   const aura=new Laya.Sprite();aura.graphics.drawCircle(0,0,260,'#202c4a');
   aura.alpha=.45;aura.pos(685,0);scene.addChild(aura);
   txt(scene,48,34,'✦  刮 出 奇 迹',48,C.gold,510,'left',true);
-  txt(scene,48,96,'LUCK WORKSHOP · 真正可以刮的好运票',20,'#bec9dc',580);
+  txt(scene,48,96,'LUCK WORKSHOP · 银箔刮擦特别版',20,'#bec9dc',580);
   btn(scene,568,45,144,60,'重开', '#c2cee0',()=>reset());
   rect(scene,48,158,654,100,24,'#202d4a','#36466c');
   txt(scene,70,165,'本轮进度',20,C.muted,185);
@@ -169,7 +171,7 @@ function draw():void{
   txt(scene,83,287,'✦  街角经典',37,'#5a3c2b',390,'left',true);
   txt(scene,490,297,'4 × 4 幸运票',21,'#91714f',175,'right',true);
   txt(scene,87,343,'线索：'+rowClues(state.ticket).map((s,i)=>(i+1)+'行'+s.label).slice(0,2).join('  ·  '),18,'#78614e',583);
-  txt(scene,87,376,'操作：在银层上持续滑动刮开，不是点一下翻牌',20,'#845e45',590);
+  txt(scene,87,376,'沿银层来回刮擦 · 刮出银屑 · 超过一半自动揭晓',20,'#845e45',590);
   state.ticket.cells.forEach((cell,index)=>{
     const col=index%4,row=Math.floor(index/4);
     const x=BOARD.x+col*(BOARD.cell+BOARD.gap),y=BOARD.y+row*(BOARD.cell+BOARD.gap);
@@ -203,6 +205,7 @@ function draw():void{
     rect(scene,48,1251,654,66,18,'#263550');
     txt(scene,48,1260,'刮够 8 格后可收手，或冒险多刮两格',22,C.muted,654,'center');
   }
+  foil.endFrame();
   foil.setEnabled(!state.committed&&(state.ticket.regularRemaining>0||state.riskArmed));
 }
 async function boot():Promise<void>{
