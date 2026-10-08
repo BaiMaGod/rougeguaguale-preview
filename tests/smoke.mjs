@@ -7,7 +7,17 @@ try {
   page.on('pageerror',err=>errors.push(err.message));
   page.on('console',msg=>{if(msg.type()==='error')errors.push(msg.text());});
   await page.goto('http://127.0.0.1:18080/',{waitUntil:'load'});
-  await page.waitForFunction(()=>window.Laya?.stage?.numChildren>0,{timeout:30000});
+  try {
+    await page.waitForFunction(()=>window.Laya?.stage?.numChildren>0,null,{timeout:10000});
+  } catch (e) {
+    console.error('BOOT DIAGNOSTICS',JSON.stringify({
+      errors,
+      panel:await page.locator('#load-error').textContent(),
+      panelHidden:await page.locator('#load-error').getAttribute('hidden'),
+      state:await page.evaluate(()=>({laya:typeof window.Laya,stage:window.Laya?.stage?.numChildren,gameCanvas:document.querySelectorAll('canvas').length,gameRoot:document.querySelector('#game-root')?.innerHTML.slice(0,350)}))
+    },null,2));
+    throw e;
+  }
   const foils=page.locator('#scratch-root canvas');
   await page.waitForFunction(()=>document.querySelectorAll('#scratch-root canvas').length===16);
   assert.equal(await foils.count(),16,'16 foil cells must be drawn');
