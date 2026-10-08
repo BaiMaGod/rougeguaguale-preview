@@ -18,7 +18,7 @@ export function itemDef(id:ItemId):ItemDef{
 export function itemOffer(seed:string,round:number):ItemId {
  let h=2166136261>>>0;
  for(const c of seed+':tools:'+round){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}
- return ITEMS[h%ITEMS.length].id;
+ return ITEMS[(h>>>0)%ITEMS.length].id;
 }
 export function buyItem(build:Build,id:ItemId):Build {
  const def=itemDef(id);
