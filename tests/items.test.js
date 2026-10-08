@@ -9,6 +9,7 @@ const base=()=>createTicket('items',INITIAL_PLATE);
 test('store tool offers deterministic and inventory has a strict two-slot cap',()=>{
  assert.equal(ITEMS.length,5);
  assert.equal(itemOffer('seed',0),itemOffer('seed',0));
+ for(let n=0;n<200;n++)assert.ok(ITEMS.some(x=>x.id===itemOffer('tool-seed-'+n,n%8)));
  let b=createBuild();
  b=grantRoundCopper(b,0,3);
  b=buyItem(b,'I02');
