@@ -58,6 +58,7 @@ jobs:
           npx playwright install chromium
           python3 -m http.server 18080 --directory site >/tmp/foil-http.log 2>&1 &
           node tests/smoke.mjs
+          node tests/progression-ui.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
