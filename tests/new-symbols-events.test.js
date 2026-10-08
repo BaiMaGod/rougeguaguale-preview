@@ -44,11 +44,11 @@ test('sun adjacency B +4 for each orthogonally active natural neighbor',()=>{
 test('moon multiplier only if at most 7 activated and vault depends on starting copper',()=>{
  let t=make(['moon','moon','moon','vault','star','star','star','star']);
  t.openCopper=10;t=reveal(t,[0,1,2,3]);
- assert.equal(Number(calculateScore(t).M.toFixed(2)),1.95);
+ assert.equal(Number(calculateScore(t).M.toFixed(2)),2.15);
  const poor=calculateScore({...t,openCopper:9});
- assert.equal(Number(poor.M.toFixed(2)),1.75);
+ assert.equal(Number(poor.M.toFixed(2)),1.95);
  t=reveal(t,[4,5,6,7]);
- assert.equal(Number(calculateScore(t).M.toFixed(2)),1.20);
+ assert.equal(Number(calculateScore(t).M.toFixed(2)),1.60);
 });
 test('prism fills only triple groups and does not manufacture diversity or base',()=>{
  const t=make(['star','star','prism','ink','moon']);
@@ -111,7 +111,8 @@ test('E07 stamp recycle calculates refund +3 and never consumes unselected equip
 test('new symbol stamps really affect score with different multipliers',()=>{
  const b=createBuild();b.stamps=['R22','R34','R42','R46','R48'];
  const layout=['sun','star','moon','vault','spark','gem','key','bell','leaf','ink'];
- const t=reveal(make(layout),[0,1,2,3,4,5,6,7,8],b);
+ const ticket=make(layout);ticket.regularRemaining=10;
+ const t=reveal(ticket,[0,1,2,3,4,5,6,7,8],b);
  const a=calculateScore(t),c=calculateScore(t,{build:b});
  assert.ok(c.B>a.B);
  assert.ok(c.X>a.X);

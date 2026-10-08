@@ -58,7 +58,7 @@ test('two seeded events occur after rounds 2 and 5, no repeated event',()=>{
   assert.equal(eventForRound(0,seed),undefined);
   assert.equal(eventForRound(8,seed),undefined);
  }
- assert.equal(EVENTS.length,8);
+ assert.equal(EVENTS.length,12);
 });
 test('event choice A/B validated before changing build; event can be cancelled with no mutation',()=>{
  const base=createBuild(),original=structuredClone(base);
@@ -128,7 +128,7 @@ test('new stamp synergies interact with real scoring and pressure, not just UI',
  const gloved=useItem({...b,items:['I11']},reveal(createTicket('extra2',plate),[0,1,2,3,4,5,6,7],b),'I11');
  const after=activateCell(gloved.ticket,8,{extra:true,build:b});
  assert.equal(after.extraPenaltyTotal,.075); // first R27 -0.10, then I11 half
- assert.equal(STAMPS.length,20);
+ assert.equal(STAMPS.length,26);
 });
 test('seeded 16-cell distribution remains invariant across tickets and stage offers',()=>{
  for(let i=0;i<100;i++){
