@@ -128,7 +128,7 @@ test('new stamp synergies interact with real scoring and pressure, not just UI',
  const gloved=useItem({...b,items:['I11']},reveal(createTicket('extra2',plate),[0,1,2,3,4,5,6,7],b),'I11');
  const after=activateCell(gloved.ticket,8,{extra:true,build:b});
  assert.equal(after.extraPenaltyTotal,.075); // first R27 -0.10, then I11 half
- assert.equal(STAMPS.length,26);
+ assert.equal(STAMPS.length,48);
 });
 test('seeded 16-cell distribution remains invariant across tickets and stage offers',()=>{
  for(let i=0;i<100;i++){

@@ -12,7 +12,7 @@ test('twelve symbol entries include five new naturals and an unupgradable prism'
  const b=createBuild();
  for(const key of ['key','spark','sun','moon','vault'])assert.equal(b.levels[key],0);
  assert.equal(b.levels.prism,undefined);
- assert.equal(STAMPS.length,26);
+ assert.equal(STAMPS.length,48);
 });
 test('first key gives scout once, repeat key does not grant more charges',()=>{
  let t=make(['key','key','gem','ink']);
