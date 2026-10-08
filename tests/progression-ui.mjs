@@ -21,7 +21,12 @@ page.on('pageerror',e=>errors.push(e.message));
 page.on('console',e=>{if(e.type()==='error')errors.push(e.text());});
 try{
  const snapshot=fixture();
- await page.addInitScript(value=>localStorage.setItem('foil-run-v4',JSON.stringify(value)),snapshot);
+ await page.addInitScript(value=>{
+   if(!sessionStorage.getItem('fixture-loaded')){
+     localStorage.setItem('foil-run-v4',JSON.stringify(value));
+     sessionStorage.setItem('fixture-loaded','1');
+   }
+ },snapshot);
  await page.goto('http://127.0.0.1:18080/',{waitUntil:'load'});
  await page.locator('#workshop-overlay.open').waitFor();
  await page.getByText('本轮过关！三选一改造').waitFor();
