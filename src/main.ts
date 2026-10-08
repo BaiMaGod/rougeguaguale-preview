@@ -491,7 +491,7 @@ function handleWorkshopAction(action:string):void{
   }
   if(state.phase==='ticket-choice'&&action.startsWith('ticket-')){
     const id=action.slice('ticket-'.length) as TicketId;
-    const candidates=ticketCandidates(state.seed,state.round,state.ticketIndex,b.plate);
+    const candidates=ticketCandidates(state.seed,state.round,state.ticketIndex,b.plate,b.stamps);
     if(!candidates.some(candidate=>candidate.id===id))return;
     try{
       state.ticket=applyTicketChoice(state.ticket,id,bossForRound(state.round,state.seed),state.ticketIndex===1);
