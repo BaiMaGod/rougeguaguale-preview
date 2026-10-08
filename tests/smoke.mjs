@@ -18,9 +18,22 @@ try {
     },null,2));
     throw e;
   }
-  const foils=page.locator('#scratch-root canvas');
-  await page.waitForFunction(()=>document.querySelectorAll('#scratch-root canvas').length===16);
+  const foils=page.locator('#scratch-root canvas[data-index]');
+  await page.waitForFunction(()=>document.querySelectorAll('#scratch-root canvas[data-index]').length===16);
   assert.equal(await foils.count(),16,'16 foil cells must be drawn');
+  // Silver coat must be visibly textured, not a flat CSS-looking gradient.
+  const texture=await foils.first().evaluate(canvas=>{
+    const ctx=canvas.getContext('2d');
+    const colors=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+    const samples=new Set();
+    for(let n=0;n<120;n++){
+      const x=(n*31)%canvas.width, y=(n*43)%canvas.height;
+      samples.add(colors[(y*canvas.width+x)*4]);
+    }
+    return {variation:samples.size,material:canvas.dataset.material};
+  });
+  assert.equal(texture.material,'silver-grain-v2');
+  assert.ok(texture.variation>35,'silver coating must have fine material grain');
   const box=await foils.first().boundingBox();
   assert.ok(box,'first scratch cell bounding box');
   for(let i=0;i<9;i++){
@@ -32,17 +45,35 @@ try {
     await page.mouse.up();
   }
   assert.equal(await foils.count(),15,'scratching foil must reveal one LayaAir cell');
+  const particleCount=await page.locator('#foil-particles').getAttribute('data-emissions');
+  assert.ok(Number(particleCount)>30,'scratching must generate directional silver particle flakes');
+  // Scratching a second foil partly, then updating UI, must not clear the progress.
+  const second=foils.first();
+  const secondBox=await second.boundingBox();
+  assert.ok(secondBox);
+  await page.mouse.move(secondBox.x+secondBox.width*.07,secondBox.y+secondBox.height*.5);
+  await page.mouse.down();
+  await page.mouse.move(secondBox.x+secondBox.width*.94,secondBox.y+secondBox.height*.5,{steps:13});
+  await page.mouse.up();
+  const partial=Number(await second.getAttribute('data-coverage'));
+  assert.ok(partial>.04&&partial<.52,'partial silver coating should remain on screen');
+  const hintRoot=await page.locator('#game-root').boundingBox();
+  const hintScale=hintRoot.width/750;
+  await page.mouse.click(hintRoot.x+535*hintScale,hintRoot.y+1205*hintScale);
+  const retained=Number(await page.locator('#scratch-root canvas[data-index="1"]').getAttribute('data-coverage'));
+  assert.ok(Math.abs(partial-retained)<.001,'UI updates must preserve partially erased foil');
+
   // A scratched symbol should be bankable and the next ticket should fully reset its foil.
   const rootRect=await page.locator('#game-root').boundingBox();
   assert.ok(rootRect,'game viewport');
   const s=rootRect.width/750;
   await page.mouse.click(rootRect.x+205*s,rootRect.y+1205*s);
   await page.waitForFunction(()=>
-    [...document.querySelectorAll('#scratch-root canvas')].length===15 &&
-    [...document.querySelectorAll('#scratch-root canvas')].every(el=>el.style.pointerEvents==='none'),null,{timeout:5000});
+    [...document.querySelectorAll('#scratch-root canvas[data-index]')].length===15 &&
+    [...document.querySelectorAll('#scratch-root canvas[data-index]')].every(el=>el.style.pointerEvents==='none'),null,{timeout:5000});
   await page.mouse.click(rootRect.x+375*s,rootRect.y+1285*s);
-  await page.waitForFunction(()=>document.querySelectorAll('#scratch-root canvas').length===16,null,{timeout:5000});
+  await page.waitForFunction(()=>document.querySelectorAll('#scratch-root canvas[data-index]').length===16,null,{timeout:5000});
   assert.deepEqual(errors,[],'there should be no browser JS errors');
   await page.screenshot({path:'scratch-smoke.png'});
-  console.log('BROWSER SMOKE PASS: 16 foil cells; pointer dragging reveals a cell; no JS errors');
+  console.log('BROWSER SMOKE PASS: metallic grain; silver flakes; real dragging; partial stroke preserved; collect/next; no JS errors');
 } finally {await browser.close();}
