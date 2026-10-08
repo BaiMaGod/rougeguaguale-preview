@@ -1,5 +1,4 @@
-name: Deploy GitHub Pages
-
+name: Build TypeScript and Deploy LayaAir 3.4
 on:
   push:
     branches: ["main"]
@@ -15,23 +14,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  build-and-deploy:
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload static site
-        uses: actions/upload-pages-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          path: .
-
+          node-version: '22'
+      - name: Install TypeScript
+        run: npm install --no-package-lock
+      - name: Compile and test game rules
+        run: npm test
+      - name: Download official LayaAir 3.4.0 engine library
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 --connect-timeout 30 --max-time 180 \
+            "https://github.com/layabox/LayaAir/releases/download/v3.4.0/LayaAir_3.4.0_libs.zip" \
+            -o "${RUNNER_TEMP}/laya.zip"
+          mkdir -p "${RUNNER_TEMP}/laya-unpack" site/libs
+          unzip -q "${RUNNER_TEMP}/laya.zip" -d "${RUNNER_TEMP}/laya-unpack"
+          for name in laya.core.js laya.ui.js laya.opengl_2D.js; do
+            file="$(find "${RUNNER_TEMP}/laya-unpack" -type f -name "$name" -print -quit)"
+            if [ -z "$file" ]; then echo "Missing required engine file: $name"; exit 1; fi
+            cp "$file" "site/libs/$name"
+          done
+      - name: Assemble static HTML5 build
+        run: |
+          mkdir -p site/build
+          cp index.html styles.css site/
+          cp build/*.js site/build/
+          touch site/.nojekyll
+          test -s site/libs/laya.core.js
+          test -s site/build/main.js
+          test -s site/build/rules.js
+          test -s site/build/scratch.js
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./site
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
