@@ -130,7 +130,7 @@ function symbolInstanceBase(ticket:Ticket,index:number,build?:Build):number{
   const sym=cell.symbol;
   let base=SYMBOLS[sym].base+(sym!=='ink'?(build?.levels[sym]??0)*4:0);
   if(ticket.ticketType==='T08'&&sym!=='ink')base+=4;
-  if(ticket.inkColor===sym&&sym!=='ink')base+=6;
+  if(ticket.inkColor===sym)base+=6;
   if(ticket.bossId==='B02'&&[0,3,12,15].includes(index))base=0;
   if(ticket.bossId==='B05'&&ticket.activatedOrder.filter(i=>ticket.cells[i].symbol!=='ink').slice(0,2).includes(index))base=0;
   return base;
