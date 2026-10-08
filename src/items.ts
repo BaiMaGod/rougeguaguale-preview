@@ -1,4 +1,4 @@
-import {cloneTicket,scoutCell,type Ticket,type SymbolKey} from './rules.js';
+import {cloneTicket,type Ticket,type NaturalSymbol} from './rules.js';
 import {copyBuild,type Build} from './build.js';
 
 export type ItemId='I01'|'I02'|'I03'|'I04'|'I05'|'I06'|'I07'|'I08'|'I09'|'I10'|'I11'|'I12';
@@ -36,7 +36,7 @@ export function buyItem(build:Build,id:ItemId):Build {
  b.items.push(id);
  return b;
 }
-export interface ItemTarget {cell?:number;second?:number;row?:number;symbol?:Exclude<SymbolKey,'ink'>}
+export interface ItemTarget {cell?:number;second?:number;row?:number;symbol?:NaturalSymbol}
 export function isTargetedItem(id:ItemId):boolean{return ['I04','I05','I08','I09'].includes(id);}
 export function canUseItem(ticket:Ticket,id:ItemId):boolean {
  if(ticket.status!=='active'||ticket.settled||((ticket.itemsUsed??0)>=2))return false;
@@ -62,7 +62,7 @@ export function useItem(build:Build,ticket:Ticket,id:ItemId,target:ItemTarget={}
  // Validate targets before spending currency or inventory; invalid interaction is a no-op.
  if(id==='I04'&&(!Number.isInteger(target.row)||target.row===undefined||target.row<0||target.row>3||
     !ticket.cells.some(c=>Math.floor(c.index/4)===target.row&&c.state!=='active')))throw new Error('请选择可以显影的行');
- if(id==='I05'&&(!target.symbol||!(target.symbol in {star:1,bell:1,leaf:1,gear:1,gem:1})))throw new Error('请指定自然符号');
+ if(id==='I05'&&(!target.symbol||!(['star','bell','leaf','gear','gem','key','spark','sun','moon','vault'] as string[]).includes(target.symbol)))throw new Error('请指定自然符号');
  if(id==='I08'&&(!Number.isInteger(target.cell)||!Number.isInteger(target.second)||
     target.cell===target.second||![target.cell,target.second].every(i=>{
       const cell=ticket.cells[i!];return cell?.state==='active'&&cell.symbol!=='ink';

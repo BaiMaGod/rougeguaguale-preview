@@ -1,7 +1,8 @@
-import {INITIAL_PLATE, SYMBOLS, type SymbolKey} from './rules.js';
+import {INITIAL_PLATE, SYMBOLS, type SymbolKey, type NaturalSymbol} from './rules.js';
 import type {ItemId} from './items.js';
 
-export type BasicSymbol=Exclude<SymbolKey,'ink'>;
+export type BasicSymbol=NaturalSymbol;
+export type ReprintSymbol=BasicSymbol|'prism';
 export type RewardKind='stamp'|'upgrade'|'reprint';
 export interface StampDef {id:string;name:string;description:string;price:number;tag:string;}
 export const STAMPS:readonly StampDef[]=[
@@ -24,7 +25,13 @@ export const STAMPS:readonly StampDef[]=[
  {id:'R27',name:'耐热铜币',description:'每次追加刮开的倍率代价减0.10',price:6,tag:'控压'},
  {id:'R28',name:'警戒红线',description:'正常结算压力恰为2时 M+0.40',price:6,tag:'控压'},
  {id:'R44',name:'零钱夹',description:'开票持有至少10铜券则基础分+15',price:6,tag:'经济'},
- {id:'R45',name:'五色封条',description:'激活5类自然符号时 M+0.50',price:10,tag:'杂彩'}
+ {id:'R45',name:'五色封条',description:'激活5类自然符号时 M+0.50',price:10,tag:'杂彩'},
+ {id:'R06',name:'棱镜夹',description:'每枚激活棱镜额外 B+8',price:10,tag:'同色'},
+ {id:'R22',name:'夜间批注',description:'每枚激活月亮 B+10',price:10,tag:'显影'},
+ {id:'R34',name:'余音纸',description:'每次非零回声额外 B+6',price:6,tag:'回声'},
+ {id:'R42',name:'太阳贴',description:'每枚激活太阳额外 B+6',price:6,tag:'杂彩'},
+ {id:'R46',name:'收藏家的票根',description:'5种自然符号且无墨团的正常票 X×1.30',price:10,tag:'杂彩'},
+ {id:'R48',name:'万花印记',description:'激活6种自然符号时 X×1.80',price:16,tag:'杂彩'}
 ];
 export interface Build {
   plate:SymbolKey[];levels:Record<BasicSymbol,number>;
@@ -45,7 +52,7 @@ function rotated<T>(values:readonly T[],seed:string):T[]{
 }
 export function createBuild():Build{
  return {plate:[...INITIAL_PLATE],
-  levels:{star:0,bell:0,leaf:0,gear:0,gem:0},
+  levels:{star:0,bell:0,leaf:0,gear:0,gem:0,key:0,spark:0,sun:0,moon:0,vault:0},
   stamps:[],items:[],copper:6,shopServiceUsed:false};
 }
 export function copyBuild(b:Build):Build{
@@ -61,8 +68,8 @@ export function canUpgrade(b:Build,type:BasicSymbol):boolean{return b.levels[typ
 export function availableUpgrades(b:Build):BasicSymbol[]{
  return (Object.keys(b.levels) as BasicSymbol[]).filter(type=>canUpgrade(b,type));
 }
-export function legalReprint(b:Build,sourceIndices:number[],target:BasicSymbol):boolean{
- if(sourceIndices.length!==2 || new Set(sourceIndices).size!==2 || !(target in b.levels))return false;
+export function legalReprint(b:Build,sourceIndices:number[],target:ReprintSymbol):boolean{
+ if(sourceIndices.length!==2 || new Set(sourceIndices).size!==2 || !(target in b.levels || target==='prism'))return false;
  if(sourceIndices.some(i=>!Number.isInteger(i)||i<0||i>=16||b.plate[i]==='ink'))return false;
  const after=b.plate.map((s,i)=>sourceIndices.includes(i)?target:s);
  return after.filter(s=>s===target).length<=8 &&
@@ -78,7 +85,7 @@ export function rewardOptions(b:Build,round:number,seed:string):RewardOption[]{
  if(b.plate.filter(s=>s!=='ink').length>=2)options.push({kind:'reprint',id:'reprint-'+round});
  return options;
 }
-export function applyReward(b:Build,reward:RewardOption,sourceIndices:number[]=[],target?:BasicSymbol):Build{
+export function applyReward(b:Build,reward:RewardOption,sourceIndices:number[]=[],target?:ReprintSymbol):Build{
  const result=copyBuild(b);
  if(reward.kind==='stamp'){
   if(!reward.stamp)throw new Error('印章不存在');

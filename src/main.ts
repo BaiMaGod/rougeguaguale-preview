@@ -1,8 +1,8 @@
 import {SYMBOLS, ROUND_TARGETS, createTicket, shuffledPlate, scoutCell, activateCell, calculateScore, settleTicket, rowClues, type Ticket, type SymbolKey} from './rules.js';
-import {createBuild, rewardOptions, applyReward, grantRoundCopper, skipReward, shopOffer, buyStamp, buyUpgrade, availableUpgrades, legalReprint, getStamp, upgradePrice, buildSummary, type BasicSymbol, type Build, type RewardOption} from './build.js';
+import {createBuild, rewardOptions, applyReward, grantRoundCopper, skipReward, shopOffer, buyStamp, buyUpgrade, availableUpgrades, legalReprint, getStamp, upgradePrice, buildSummary, type BasicSymbol, type ReprintSymbol, type Build, type RewardOption} from './build.js';
 import {ScratchLayer} from './scratch.js';
 import {applyTicketChoice,swapTicket,bossForRound,BOSSES,ticketCandidates,ticketDefinition,type TicketId} from './tickets.js';
-import {eventForRound,eventAvailable,eventNeedsTarget,applyEvent,type EventChoice} from './events.js';
+import {eventForRound,eventAvailable,eventNeedsTarget,eventNeedsStamp,applyEvent,type EventChoice} from './events.js';
 import {itemDef,itemOffer,buyItem,useItem,canUseItem,isTargetedItem,type ItemTarget,type ItemId} from './items.js';
 
 declare const Laya: any;
@@ -174,13 +174,14 @@ let swapOpen=false;
 let swapSelection:number[]=[];
 let selectedEventChoice:EventChoice|null=null;
 let selectedEventTarget:BasicSymbol|null=null;
+let selectedEventStamp:string|null=null;
 let selectedItemIndex:number|null=null;
 let selectedTarget:ItemTarget={};
 const workshop=document.createElement('div');
 workshop.id='workshop-overlay';
 root.appendChild(workshop);
 let reprintSelection:number[]=[];
-let reprintTarget:BasicSymbol='star';
+let reprintTarget:ReprintSymbol='star';
 let inReprint=false;
 const stampLine=(id:string):string=>{
   const d=getStamp(id);
@@ -200,6 +201,7 @@ function loadRun():boolean{
     if(b.version!==4||!b.build||!b.ticket||!Array.isArray(b.build.plate)||b.build.plate.length!==16)return false;
     if(!Array.isArray(b.ticket.cells)||b.ticket.cells.length!==16||!Array.isArray(b.build.stamps))return false;
     if(!Array.isArray(b.build.items))b.build.items=[];
+    for(const type of ['key','spark','sun','moon','vault'])if(typeof b.build.levels[type]!=='number')b.build.levels[type]=0;
     if(!['ticket','ticket-choice','reward','event','shop','ended'].includes(b.phase)||b.round<0||b.round>8||b.ticketIndex<1||b.ticketIndex>3)return false;
     if(urlSeed&&urlSeed!==b.seed)return false;
     Object.assign(state,{seed:b.seed,round:b.round,bank:b.bank,ticketIndex:b.ticketIndex,
@@ -245,7 +247,7 @@ function renderWorkshop():void{
           return actionButton('第 '+(row+1)+' 行','tool-row-'+row,!legal,selectedTarget.row!==row);
         }).join('');
       }else if(pending==='I05'){
-        choices=(['star','bell','leaf','gear','gem'] as BasicSymbol[]).map(sym=>
+        choices=(Object.keys(b.levels) as BasicSymbol[]).map(sym=>
           actionButton(SYMBOLS[sym].icon+' '+SYMBOLS[sym].name,'tool-symbol-'+sym,false,selectedTarget.symbol!==sym)).join('');
       }else{
         choices=state.ticket.cells.map((cell,i)=>{
@@ -294,7 +296,17 @@ function renderWorkshop():void{
   }else if(state.phase==='event'){
     const event=eventForRound(state.round,state.seed);
     if(!event)throw new Error('找不到当前轮次的工坊事件');
-    if(selectedEventChoice&&eventNeedsTarget(event.id,selectedEventChoice)){
+    if(selectedEventChoice&&eventNeedsStamp(event.id,selectedEventChoice)){
+      const controls=b.stamps.map(id=>{
+        const d=getStamp(id);
+        return actionButton(d.name+' · 回收 '+(Math.floor(d.price/2)+3)+' 铜券',
+          'event-stamp-'+id,false,selectedEventStamp!==id);
+      }).join('');
+      content='<h2>'+event.name+' · 选择回收印章</h2><p>确认前不会回收。所选印章会从装备槽移除。</p>'+
+        '<div class="work-options">'+controls+'</div>'+
+        actionButton('确认回收','event-stamp-confirm',!selectedEventStamp||!eventAvailable(event.id,selectedEventChoice,b,undefined,selectedEventStamp))+
+        actionButton('返回事件','event-back',false,true);
+    }else if(selectedEventChoice&&eventNeedsTarget(event.id,selectedEventChoice)){
       const controls=(Object.keys(b.levels) as BasicSymbol[]).map(type=>
         actionButton(SYMBOLS[type].icon+' '+SYMBOLS[type].name+
           ' Lv.'+b.levels[type],'event-target-'+type,
@@ -308,8 +320,8 @@ function renderWorkshop():void{
       content='<h2>✦ 偶遇：'+event.name+'</h2><p>第 '+(state.round+1)+
         ' 轮过关后的特殊事件。本次两种处理只能选一种，或者直接离开。</p>'+
         '<div class="work-cards"><div class="work-card"><div class="work-card-title">选择 A</div><p>'+event.a+'</p>'+
-        actionButton(eventNeedsTarget(event.id,'A')?'选择目标后执行 A':'执行选择 A','event-a',
-          !eventNeedsTarget(event.id,'A')&&!eventAvailable(event.id,'A',b))+'</div>'+
+        actionButton(eventNeedsTarget(event.id,'A')||eventNeedsStamp(event.id,'A')?'选择目标后执行 A':'执行选择 A','event-a',
+          (!(eventNeedsTarget(event.id,'A')||eventNeedsStamp(event.id,'A'))&&!eventAvailable(event.id,'A',b))||(eventNeedsStamp(event.id,'A')&&b.stamps.length===0))+'</div>'+
         '<div class="work-card"><div class="work-card-title">选择 B</div><p>'+event.b+'</p>'+
         actionButton(eventNeedsTarget(event.id,'B')?'选择目标后执行 B':'执行选择 B','event-b',
           !eventNeedsTarget(event.id,'B')&&!eventAvailable(event.id,'B',b))+'</div></div>'+
@@ -318,7 +330,7 @@ function renderWorkshop():void{
   }else if(state.phase==='reward'){
     const options=rewardOptions(b,state.round,state.seed+':reward:'+state.round);
     if(inReprint){
-      const choices=(Object.keys(b.levels) as BasicSymbol[]).map(type=>
+      const choices=([...(Object.keys(b.levels) as BasicSymbol[]),'prism'] as ReprintSymbol[]).map(type=>
         actionButton(SYMBOLS[type].name+' ('+b.plate.filter(s=>s===type).length+'/8)',
          'target-'+type,false,reprintTarget!==type)).join('');
       const cells=b.plate.map((sym,i)=>{
@@ -376,7 +388,7 @@ function renderWorkshop():void{
   });
 }
 function enterPostReward():void{
-  selectedEventChoice=null;selectedEventTarget=null;
+  selectedEventChoice=null;selectedEventTarget=null;selectedEventStamp=null;
   state.phase=eventForRound(state.round,state.seed)?'event':'shop';
 }
 function finishEvent():void{
@@ -385,7 +397,7 @@ function finishEvent():void{
   state.itemPurchased=false;
   draw();renderWorkshop();saveRun();
 }
-function rewardChosen(option:RewardOption,source:number[]=[],target?:BasicSymbol):void{
+function rewardChosen(option:RewardOption,source:number[]=[],target?:ReprintSymbol):void{
   try{
     state.build=applyReward(state.build,option,source,target);
     enterPostReward();inReprint=false;reprintSelection=[];
@@ -426,8 +438,17 @@ function handleWorkshopAction(action:string):void{
     const event=eventForRound(state.round,state.seed);
     if(!event)return;
     if(action==='event-leave'){finishEvent();return;}
-    if(action==='event-back'){selectedEventChoice=null;selectedEventTarget=null;renderWorkshop();return;}
+    if(action==='event-back'){selectedEventChoice=null;selectedEventTarget=null;selectedEventStamp=null;renderWorkshop();return;}
     if(action.startsWith('event-target-')){selectedEventTarget=action.slice(13) as BasicSymbol;renderWorkshop();return;}
+    if(action.startsWith('event-stamp-')&&action!=='event-stamp-confirm'){
+      selectedEventStamp=action.slice('event-stamp-'.length);renderWorkshop();return;
+    }
+    if(action==='event-stamp-confirm'){
+      if(!selectedEventChoice||!selectedEventStamp)return;
+      try{state.build=applyEvent(b,event.id,selectedEventChoice,undefined,selectedEventStamp);finishEvent();}
+      catch(e){showWorkshopError(e);}
+      return;
+    }
     if(action==='event-confirm'){
       if(!selectedEventChoice||!selectedEventTarget)return;
       try{state.build=applyEvent(b,event.id,selectedEventChoice,selectedEventTarget);finishEvent();}
@@ -436,8 +457,8 @@ function handleWorkshopAction(action:string):void{
     }
     if(action==='event-a'||action==='event-b'){
       const c:EventChoice=action==='event-a'?'A':'B';
-      if(eventNeedsTarget(event.id,c)){
-        selectedEventChoice=c;selectedEventTarget=null;renderWorkshop();return;
+      if(eventNeedsTarget(event.id,c)||eventNeedsStamp(event.id,c)){
+        selectedEventChoice=c;selectedEventTarget=null;selectedEventStamp=null;renderWorkshop();return;
       }
       try{state.build=applyEvent(b,event.id,c);finishEvent();}
       catch(e){showWorkshopError(e);}
@@ -514,7 +535,7 @@ function handleWorkshopAction(action:string):void{
     if(action==='reprint-open'){inReprint=true;reprintSelection=[];renderWorkshop();return;}
     if(action==='reprint-back'){inReprint=false;reprintSelection=[];renderWorkshop();return;}
     if(action.startsWith('target-')){
-      reprintTarget=action.slice(7) as BasicSymbol;renderWorkshop();return;
+      reprintTarget=action.slice(7) as ReprintSymbol;renderWorkshop();return;
     }
     if(action.startsWith('cell-')){
       const index=Number(action.slice(5));

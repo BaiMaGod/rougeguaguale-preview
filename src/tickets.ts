@@ -47,7 +47,7 @@ export function ticketDefinition(id:TicketId):TicketDef{
 export function ticketCandidates(seed:string,round:number,number:number,plate:readonly SymbolKey[],stamps:readonly string[]=[]):TicketDef[]{
  const extra=TICKET_TYPES.filter(type=>type.id!=='T01'&&
    (type.id!=='T06'||plate.filter(sym=>sym==='gear').length>=2)&&
-   (type.id!=='T10'||stamps.includes('R20')||stamps.includes('R23')));
+   (type.id!=='T10'||plate.includes('moon')||stamps.includes('R20')||stamps.includes('R23')));
  let x=hash(seed+':tickets:'+round+':'+number);
  const shuffled=[...extra];
  for(let i=shuffled.length-1;i>0;i--){
