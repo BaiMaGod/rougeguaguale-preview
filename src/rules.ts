@@ -1,11 +1,12 @@
 import type {Build} from './build.js';
+import type {BossId,TicketId} from './tickets.js';
 export type SymbolKey = 'star' | 'bell' | 'leaf' | 'gear' | 'gem' | 'ink';
 export type CellState = 'hidden' | 'scouted' | 'active';
 export type TicketStatus = 'active' | 'accident' | 'settled';
 
 export interface Cell { index: number; symbol: SymbolKey; state: CellState; }
 export interface Ticket {
-  seed: string; ticketType: string; crafter: string; cells: Cell[];
+  seed: string; ticketType: TicketId; bossId?:BossId; crafter: string; cells: Cell[];
   regularRemaining: number; extraRemaining: number; scoutRemaining: number;
   pressure: number; extraUsed: number; activatedOrder: number[];
   status: TicketStatus; finalScore: number | null; settled: boolean;
@@ -119,7 +120,7 @@ function validLines(ticket:Ticket):number[][]{
   for(let c=0;c<4;c++) lines.push([c,c+4,c+8,c+12]);
   return lines.filter(line=>line.every(i=>ticket.cells[i].state==='active' && ticket.cells[i].symbol!=='ink'));
 }
-function gearAdjacencyBonus(ticket:Ticket):number{
+function gearAdjacencyBonus(ticket:Ticket,perNeighbor=8):number{
   let bonus=0;const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
   for(const cell of ticket.cells){
     if(cell.state!=='active'||cell.symbol!=='gear') continue;
@@ -130,26 +131,42 @@ function gearAdjacencyBonus(ticket:Ticket):number{
       const other=ticket.cells[y*4+x];
       if(other.state==='active' && other.symbol==='gear') near++;
     }
-    bonus+=Math.min(2,near)*8;
+    bonus+=Math.min(2,near)*perNeighbor;
   }
   return bonus;
 }
 export function calculateScore(ticket:Ticket,{accident=ticket.status==='accident',build}:{accident?:boolean;build?:Build}={}):ScoreResult{
   const active=ticket.cells.filter(c=>c.state==='active');
   const counts=new Map<SymbolKey,number>();
+  const type=ticket.ticketType||'T01';
   let symbolBase=0,bellMultiplier=0;
   for(const cell of active){
-    const sym=cell.symbol,def=SYMBOLS[sym];symbolBase+=def.base+(sym!=='ink'?(build?.levels[sym]??0)*4:0);
+    const sym=cell.symbol,def=SYMBOLS[sym];
+    let base=def.base+(sym!=='ink'?(build?.levels[sym]??0)*4:0);
+    if(type==='T08' && sym!=='ink')base+=4;
+    if(ticket.bossId==='B02' && [0,3,12,15].includes(cell.index))base=0;
+    symbolBase+=base;
     if(sym!=='ink') counts.set(sym,(counts.get(sym)??0)+1);
-    if(sym==='bell') bellMultiplier+=.10;
+    if(sym==='bell') bellMultiplier+=ticket.bossId==='B03'?.05:.10;
   }
   const tripleGroups=[...counts.values()].reduce((n,c)=>n+Math.floor(c/3),0);
-  const tripleBase=tripleGroups*20,tripleMultiplier=tripleGroups*.20;
-  const lineCount=validLines(ticket).length,lineBase=lineCount*24;
-  const gearBase=gearAdjacencyBonus(ticket);
-  const varietyMultiplier=[...counts.keys()].filter(k=>SYMBOLS[k].natural).length>=4?.25:0;
+  const tripleBase=tripleGroups*(type==='T04'?35:type==='T05'?10:20);
+  const tripleMultiplier=tripleGroups*(type==='T04'?.10:.20);
+  const lines=validLines(ticket);
+  const lineCount=lines.length;
+  let lineBase=0;
+  for(const line of lines){
+    const horizontal=line[1]-line[0]===1;
+    if(type==='T02')lineBase+=horizontal?40:12;
+    else if(type==='T03')lineBase+=horizontal?12:40;
+    else if(type==='T06')lineBase+=0;
+    else if(type==='T12')lineBase+=16;
+    else lineBase+=24;
+  }
+  const gearBase=gearAdjacencyBonus(ticket,type==='T06'?12:8);
+  const varietyMultiplier=[...counts.keys()].filter(k=>SYMBOLS[k].natural).length>=4?(type==='T05'?.60:.25):0;
   const crafterBase=(counts.get('star')??0)>0?8:0;
-  const ticketBase=active.length>=6?10:0;
+  const ticketBase=type==='T01'&&active.length>=6?10:0;
   const extraPenalty=ticket.extraUsed*.25;
   let buildBonus=0;
   if(build){
@@ -162,8 +179,9 @@ export function calculateScore(ticket:Ticket,{accident=ticket.status==='accident
     if(owned.has('R33'))buildBonus+=(counts.get('gem')??0)*6;
   }
   const B=symbolBase+gearBase+tripleBase+lineBase+crafterBase+ticketBase+buildBonus;
-  const M=Math.max(.5,1+bellMultiplier+tripleMultiplier+varietyMultiplier-extraPenalty);
-  const X=1,score=accident?Math.floor(B*.40):Math.floor(B*M*X+1e-9);
+  const M=Math.max(.5,1+bellMultiplier+tripleMultiplier+varietyMultiplier-extraPenalty-(type==='T12'?.20:0));
+  const X=1;
+  const score=accident?Math.floor(B*.40):Math.floor(B*M*X+1e-9);
   return {score,B,M,X,accident,breakdown:{
     activeCount:active.length,symbolBase,gearBase,tripleGroups,tripleBase,lineCount,
     lineBase,crafterBase,ticketBase,buildBonus,bellMultiplier,tripleMultiplier,

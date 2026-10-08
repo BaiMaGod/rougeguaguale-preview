@@ -1,6 +1,7 @@
 import {SYMBOLS, ROUND_TARGETS, createTicket, shuffledPlate, scoutCell, activateCell, calculateScore, settleTicket, rowClues, type Ticket, type SymbolKey} from './rules.js';
 import {createBuild, rewardOptions, applyReward, grantRoundCopper, skipReward, shopOffer, buyStamp, buyUpgrade, availableUpgrades, legalReprint, getStamp, upgradePrice, buildSummary, type BasicSymbol, type Build, type RewardOption} from './build.js';
 import {ScratchLayer} from './scratch.js';
+import {applyTicketChoice,bossForRound,BOSSES,ticketCandidates,ticketDefinition,type TicketId} from './tickets.js';
 
 declare const Laya: any;
 const W=750,H=1334;
@@ -10,7 +11,7 @@ const root=document.getElementById('game-root') as HTMLDivElement;
 const foilRoot=document.getElementById('scratch-root') as HTMLDivElement;
 const error=document.getElementById('load-error') as HTMLElement;
 const foil=new ScratchLayer(foilRoot);
-interface RunState {seed:string;bank:number;round:number;ticketIndex:number;ticket:Ticket;committed:boolean;riskArmed:boolean;done:boolean;build:Build;phase:'ticket'|'reward'|'shop'|'ended';offers:string[];}
+interface RunState {seed:string;bank:number;round:number;ticketIndex:number;ticket:Ticket;committed:boolean;riskArmed:boolean;done:boolean;build:Build;phase:'ticket'|'ticket-choice'|'reward'|'shop'|'ended';offers:string[];}
 const urlSeed=new URLSearchParams(location.search).get('seed');
 const makeSeed=()=>urlSeed || 'foil-'+Math.floor(Date.now()/1000);
 const state:RunState={seed:makeSeed(),bank:0,round:0,ticketIndex:1,
@@ -98,8 +99,8 @@ function newTicket():void{
   foil.clear();
   const ticketSeed=state.seed+':r'+(state.round+1)+':t'+state.ticketIndex;
   state.ticket=createTicket(ticketSeed,shuffledPlate(ticketSeed,state.build.plate));
-  state.committed=false;state.riskArmed=false;state.done=false;state.phase='ticket';
-  message='像真实刮刮乐一样来回刮，银粉会随手势飞散。';
+  state.committed=false;state.riskArmed=false;state.done=false;state.phase='ticket-choice';
+  message='先从三张候选票中选一张，然后再刮开银层。';
   draw();renderWorkshop();saveRun();
 }
 function reset():void{
@@ -132,7 +133,7 @@ function finishTicket(accident=false):void{
   saveRun();
 }
 function onScratch(index:number):void{
-  if(state.committed)return;
+  if(state.committed||state.phase!=='ticket')return;
   if(state.ticket.regularRemaining<=0 && !state.riskArmed){draw();return;}
   const old=state.ticket;
   try{
@@ -188,7 +189,7 @@ function loadRun():boolean{
     const b=JSON.parse(raw);
     if(b.version!==4||!b.build||!b.ticket||!Array.isArray(b.build.plate)||b.build.plate.length!==16)return false;
     if(!Array.isArray(b.ticket.cells)||b.ticket.cells.length!==16||!Array.isArray(b.build.stamps))return false;
-    if(!['ticket','reward','shop','ended'].includes(b.phase)||b.round<0||b.round>8||b.ticketIndex<1||b.ticketIndex>3)return false;
+    if(!['ticket','ticket-choice','reward','shop','ended'].includes(b.phase)||b.round<0||b.round>8||b.ticketIndex<1||b.ticketIndex>3)return false;
     if(urlSeed&&urlSeed!==b.seed)return false;
     Object.assign(state,{seed:b.seed,round:b.round,bank:b.bank,ticketIndex:b.ticketIndex,
       ticket:b.ticket,committed:b.committed,riskArmed:b.riskArmed,done:b.done,
@@ -210,7 +211,18 @@ function renderWorkshop():void{
   const b=state.build;
   const header='<div class="work-top"><b>✦ 好运工坊</b><span>第 '+(state.round+1)+'/9 轮 · 🪙 '+b.copper+' 铜券</span></div>';
   let content='';
-  if(state.phase==='reward'){
+  if(state.phase==='ticket-choice'){
+    const boss=bossForRound(state.round,state.seed);
+    const candidates=ticketCandidates(state.seed,state.round,state.ticketIndex,b.plate);
+    const bossText=boss?'<div class="work-boss"><b>⚠ 首领 '+BOSSES[boss].name+'</b><p>'+BOSSES[boss].effect+'</p></div>':'';
+    const cards=candidates.map((d,i)=>
+      '<div class="work-card"><div class="work-card-title">'+(i+1)+' · '+d.name+
+      '</div><p>'+d.effect+'</p><small>构筑方向：'+d.strategy+'</small>'+
+      actionButton('选择 '+d.name,'ticket-'+d.id)+'</div>').join('');
+    content='<h2>选择本张刮刮乐</h2><p>第 '+(state.round+1)+' 轮 · 第 '+state.ticketIndex+'/3 张 · 三种票共用同一套16枚印版，不会暗中换中奖池。</p>'+
+      bossText+'<div class="work-cards">'+cards+'</div>'+
+      '<p>选票后立即锁定布局；不同票型的刮力、压力和计分各不相同。</p>';
+  }else if(state.phase==='reward'){
     const options=rewardOptions(b,state.round,state.seed+':reward:'+state.round);
     if(inReprint){
       const choices=(Object.keys(b.levels) as BasicSymbol[]).map(type=>
@@ -280,6 +292,18 @@ function showWorkshopError(e:unknown):void{
 function handleWorkshopAction(action:string):void{
   const b=state.build;
   if(action==='run-reset'){inReprint=false;reset();return;}
+  if(state.phase==='ticket-choice'&&action.startsWith('ticket-')){
+    const id=action.slice('ticket-'.length) as TicketId;
+    const candidates=ticketCandidates(state.seed,state.round,state.ticketIndex,b.plate);
+    if(!candidates.some(candidate=>candidate.id===id))return;
+    try{
+      state.ticket=applyTicketChoice(state.ticket,id,bossForRound(state.round,state.seed));
+      state.phase='ticket';
+      message='已选 '+ticketDefinition(id).name+'：'+ticketDefinition(id).effect;
+      draw();renderWorkshop();saveRun();
+    }catch(e){showWorkshopError(e);}
+    return;
+  }
   if(state.phase==='reward'){
     const options=rewardOptions(b,state.round,state.seed+':reward:'+state.round);
     if(action==='reward-skip'){
@@ -346,10 +370,10 @@ function draw():void{
   txt(scene,507,169,'第 '+state.ticketIndex+' / 3 张',28,C.text,175,'center',true);
   txt(scene,511,207,'目标 '+ROUND_TARGETS[state.round]+' 分',20,C.muted,175,'center');
   rect(scene,48,276,654,734,24,C.paper,'#c6a67a');
-  txt(scene,83,287,'✦  街角经典',37,'#5a3c2b',390,'left',true);
+  txt(scene,83,287,'✦  '+ticketDefinition(state.ticket.ticketType).name,37,'#5a3c2b',450,'left',true);
   txt(scene,490,297,'4 × 4 幸运票',21,'#91714f',175,'right',true);
   txt(scene,87,343,'线索：'+rowClues(state.ticket).map((s,i)=>(i+1)+'行'+s.label).slice(0,2).join('  ·  '),18,'#78614e',583);
-  txt(scene,87,376,'刮开银箔，凑组合；过关后选择强化和购物',20,'#845e45',590);
+  txt(scene,87,376,state.ticket.bossId?'首领：'+BOSSES[state.ticket.bossId].effect:'票型：'+ticketDefinition(state.ticket.ticketType).effect,19,'#845e45',590);
   state.ticket.cells.forEach((cell,index)=>{
     const col=index%4,row=Math.floor(index/4);
     const x=BOARD.x+col*(BOARD.cell+BOARD.gap),y=BOARD.y+row*(BOARD.cell+BOARD.gap);
@@ -381,7 +405,7 @@ function draw():void{
       '#f0a8a2',()=>{state.riskArmed=true;message='风险已开启！继续刮开一个银色格。';draw();});
   }else{
     rect(scene,48,1251,654,66,18,'#263550');
-    txt(scene,48,1260,'刮够 8 格后可收手，或冒险多刮两格',22,C.muted,654,'center');
+    txt(scene,48,1260,'先选择票型，再按该票的免费刮力决定是否加刮',22,C.muted,654,'center');
   }
   foil.endFrame();
   foil.setEnabled(state.phase==='ticket'&&!state.committed&&(state.ticket.regularRemaining>0||state.riskArmed));
