@@ -13,7 +13,7 @@ export function resolveBaseTicket(t:TicketInstance):Resolution {
   case 'mines':if(revealed.some(c=>c.kind==='bomb'))return result(false,'踩雷了，本票失败');
    return revealed.length>=3?result(true,'连续3格安全！'):play(`已找到 ${revealed.length}/3 个安全格`);
   case 'cashout':{
-   if(revealed.some(c=>c.kind==='bomb'))return result(false,'踩雷，本票累计奖金归零');
+   if(revealed.some(c=>c.kind==='bomb')){const protectedAmount=revealed.filter(c=>c.kind==='money').reduce((sum,c)=>sum+BigInt(c.value),0n);return t.boost==='guard'?result(protectedAmount>0n,'保命符：保住此前累计奖金，本票结束',protectedAmount):result(false,'踩雷，本票累计奖金归零');}
    const accrued=revealed.reduce((sum,c)=>sum+BigInt(c.value),0n);
    if(t.cashout||full)return result(accrued>0n,'已安全收手',accrued);
    return play('可以继续刮下一格，或现在收手',accrued);
@@ -51,7 +51,7 @@ export function resolveBaseTicket(t:TicketInstance):Resolution {
   case 'amount':return result(values[0]>0,values[0]?'刮出现金！':'本票未中奖',BigInt(layout[0].value));
   case 'multiply':return result(values[0]*values[1]===21,`${values[0]} × ${values[1]} = ${values[0]*values[1]}`);
   case 'compare':return result(values[0]>values[1],`我方 ${values[0]} ${values[0]>values[1]?'>':values[0]===values[1]?'=':'<'} 对手 ${values[1]}`);
-  case 'rise':return result(values[0]<values[1]&&values[1]<values[2],values.join(' → '));
+  case 'rise':return result(values[0]<values[1]&&values[1]<values[2],values.join(' → '),t.boost==='rise'?3000n:def.headlinePrize);
   case 'dice':return result(values[0]===6&&values[1]===6,`骰子 ${values[0]} + ${values[1]}`);
   case 'position':return result(values[0]===7&&values[1]===8,`上 ${values[0]} / 下 ${values[1]}`);
   case 'double':return result(layout[2].kind==='double',layout[2].kind==='double'?'同领两箱奖金！':'未触发同领区',BigInt(layout[0].value)+BigInt(layout[1].value));
@@ -62,7 +62,8 @@ export function resolveBaseTicket(t:TicketInstance):Resolution {
 }
 export function resolveTicket(t:TicketInstance):Resolution {
  const base=resolveBaseTicket(t);
- return {...base,prize:boostedPrize(base.prize,t.cardId,t.growth,t.bonusRoll),
+ const grown=boostedPrize(base.prize,t.cardId,t.growth,t.bonusRoll);
+ return {...base,prize:t.boost==='rise'&&grown>3000n?3000n:grown,
   accrued:cardDefinition(t.cardId).mode==='cashout'?boostedPrize(base.accrued,t.cardId,t.growth,t.bonusRoll):base.accrued};
 }
 export function canScratch(t:TicketInstance,index:number):boolean {

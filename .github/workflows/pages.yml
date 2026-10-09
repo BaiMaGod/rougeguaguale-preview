@@ -1,4 +1,4 @@
-name: Build and Deploy V3.1 Auto Machine
+name: Build and Deploy V3.1 Rebirth
 on:
   push:
     branches: [main]
@@ -26,6 +26,7 @@ jobs:
       - run: npm test
       - run: node tests/idiom-balance.mjs > idiom-balance.json
       - run: node tests/machine-balance.mjs > machine-balance.json
+      - run: node tests/rebirth-balance.mjs > rebirth-balance.json
       - name: Download official LayaAir 3.4 runtime
         run: |
           curl -fL --retry 3 https://github.com/layabox/LayaAir/releases/download/v3.4.0/LayaAir_3.4.0_libs.zip -o /tmp/laya-libs.zip
@@ -41,6 +42,7 @@ jobs:
         env:
           BROWSER_QUICK: '1'
       - run: npm run test:machine-browser
+      - run: npm run test:rebirth-browser
       - name: Assemble verified static game
         run: |
           mkdir -p site
@@ -50,16 +52,21 @@ jobs:
           test -s site/build/idiom/growth.js
           test -s site/build/idiom/machine.js
           test -s site/build/idiom/machine-state.js
+          test -s site/build/idiom/rebirth.js
+          test -s site/build/idiom/rebirth-state.js
+          test -s site/build/idiom/run-build.js
+          test -s site/build/idiom/random.js
           test -s site/build/legacy-main.js
           test -s site/libs/laya.core.js
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: idiom-machine-deployment-qa
+          name: idiom-rebirth-deployment-qa
           path: |
             qa-evidence/
             idiom-balance.json
             machine-balance.json
+            rebirth-balance.json
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

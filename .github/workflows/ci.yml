@@ -1,7 +1,7 @@
-name: V3.1 Machine Rules and Browser QA
+name: V3.1 Rebirth Rules and Browser QA
 on:
   push:
-    branches: [main, v31-basic-cards, v31-permanent-growth, v31-auto-machine]
+    branches: [main, v31-basic-cards, v31-permanent-growth, v31-auto-machine, v31-rebirth]
   pull_request:
 jobs:
   test:
@@ -16,6 +16,7 @@ jobs:
       - run: npm test
       - run: node tests/idiom-balance.mjs > idiom-balance.json
       - run: node tests/machine-balance.mjs > machine-balance.json
+      - run: node tests/rebirth-balance.mjs > rebirth-balance.json
       - name: Download official LayaAir 3.4 runtime
         run: |
           curl -fL --retry 3 https://github.com/layabox/LayaAir/releases/download/v3.4.0/LayaAir_3.4.0_libs.zip -o /tmp/laya-libs.zip
@@ -31,12 +32,14 @@ jobs:
         env:
           BROWSER_QUICK: '1'
       - run: npm run test:machine-browser
+      - run: npm run test:rebirth-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: idiom-v31-machine-qa
+          name: idiom-v31-rebirth-qa
           path: |
             qa-evidence/
             idiom-balance.json
             machine-balance.json
+            rebirth-balance.json
 

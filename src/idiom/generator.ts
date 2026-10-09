@@ -1,5 +1,8 @@
 import {cardDefinition,BASE_WIN_CHANCE,AMOUNT_POOL,CASHOUT_SAFETY,CASHOUT_REWARDS,DRAGON_EYE_TICKET_CHANCE,LEDGER_POOL,DESTINY_POOL,type CardId} from './config.js';
 import {growthModel,readLevels,GROWTH_VERSION,type Levels} from './growth.js';
+import {validBoost,RUN_BOOST_VERSION,type BoostId} from './run-build.js';
+import {seededRandom} from './random.js';
+export {seededRandom} from './random.js';
 export interface TicketCell { kind: 'number'|'symbol'|'money'|'safe'|'bomb'|'road'|'blocked'|'double'|'empty'|'eye'|'heart'|'gate'|'heaven'|'devil'|'earth'; value: string; }
 export interface TicketInstance {
  cardId: CardId; nonce: string; rngSeed: string; prizeTableVersion: string;
@@ -7,12 +10,10 @@ export interface TicketInstance {
  cashout: boolean; settled: boolean;
  growth?: Levels;
  bonusRoll?: number;
+ boost?:BoostId;
+ publicSafeIndex?:number;
 }
-export function seededRandom(seed:string):()=>number {
- let h=2166136261;for(const c of seed){h=Math.imul(h^c.charCodeAt(0),16777619);}
- return ()=>{h+=0x6D2B79F5;let t=Math.imul(h^h>>>15,1|h);t^=t+Math.imul(t^t>>>7,61|t);return ((t^t>>>14)>>>0)/4294967296;};
-}
-export function createIdiomTicket(cardId:CardId,seed:string,nonce:string,growth?:Levels):TicketInstance {
+export function createIdiomTicket(cardId:CardId,seed:string,nonce:string,growth?:Levels,boost?:BoostId):TicketInstance {
  const def=cardDefinition(cardId),rng=seededRandom(seed);
  const levels=growth?readLevels(growth):undefined,model=levels?growthModel(cardId,levels):undefined;
  const wins=()=>rng()<(model?.winChance??BASE_WIN_CHANCE[cardId]);
@@ -62,5 +63,9 @@ export function createIdiomTicket(cardId:CardId,seed:string,nonce:string,growth?
   case 'destiny':layout=Array.from({length:3},()=>{const r=rng(),heaven=r<DESTINY_POOL.heaven,devil=r<DESTINY_POOL.heaven+DESTINY_POOL.devil;
    return cell(heaven?'heaven':devil?'devil':'earth',heaven?'天堂':devil?'恶魔':'凡间');});break;
  }
- return {cardId,nonce,rngSeed:seed,prizeTableVersion:levels?GROWTH_VERSION:def.prizeTableVersion,committedLayout:layout,revealed:[],choices:[],cashout:false,settled:false,...(levels?{growth:levels,bonusRoll:rng()}:{})};
+ if(boost)validBoost(boost,cardId);
+ if(boost==='lucky')layout[0]={...layout[0],value:String(Number(layout[0].value)+2)};
+ const safeIndices=boost==='hint'?layout.flatMap((c,i)=>c.kind==='safe'?[i]:[]):[];
+ const publicSafeIndex=boost==='hint'?safeIndices[Math.floor(seededRandom(seed+':public-safe')()*safeIndices.length)]:undefined;
+ return {cardId,nonce,rngSeed:seed,prizeTableVersion:(boost?RUN_BOOST_VERSION+':':'')+(levels?GROWTH_VERSION:def.prizeTableVersion),committedLayout:layout,revealed:[],choices:[],cashout:false,settled:false,...(levels?{growth:levels,bonusRoll:rng()}:{}),...(boost?{boost}:{}),...(publicSafeIndex!==undefined?{publicSafeIndex}:{})};
 }

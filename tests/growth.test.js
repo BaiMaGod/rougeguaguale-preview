@@ -72,10 +72,10 @@ test('升级中途不影响旧票金额、布局、工具；新票获得新科�
  assert.equal(next.active.prizeTableVersion,GROWTH_VERSION);assert.deepEqual(next.active.growth,{luck:1,jackpot:1,bonus:1,scratch:1});
 });
 test('V3.1旧存档完整迁移并补领，保留原始备份和待刮票',()=>{
- const t=createIdiomTicket('T01','migration','legacy');const s={...newGame('legacy'),version:31,active:t,stats:{T01:{played:3,won:1,best:10n}},unlockedCount:2,peak:1000n};
+ const t=createIdiomTicket('T01','migration','legacy');const s={...newGame('legacy'),version:31,bought:4,active:t,stats:{T01:{played:3,won:1,best:10n}},unlockedCount:2,peak:1000n};
  delete s.progression;const raw=serializeGame(s),map=new Map([[SAVE_KEY,raw]]),storage={getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,v)};
  const migrated=loadGame(storage,'unused').state;
- assert.equal(migrated.version,33);assert.equal(migrated.progression.points,14);assert.deepEqual(migrated.active,t);
+ assert.equal(migrated.version,34);assert.equal(migrated.progression.points,14);assert.deepEqual(migrated.active,t);
  assert.equal(map.get('idiom-v31-base-backup'),raw);assert.deepEqual(restoreGame(serializeGame(migrated)),migrated);
  assert.deepEqual(loadGame(storage,'unused').state.progression,migrated.progression);
 });
@@ -90,7 +90,7 @@ test('篡改升级等级、快照与开奖版本被拒绝',()=>{
  }
 });
 test('成长奖励只结算一次，头奖里程碑按基础奖而非倍率判断',()=>{
- const t=fixture('T11','won',{...zeroLevels(),bonus:10});let s={...newGame('payout'),cash:1000000n,peak:1000000n,active:t};
+ const t=fixture('T11','won',{...zeroLevels(),bonus:10});let s={...newGame('payout'),cash:1000000n,peak:1000000n,bought:1,active:t};
  const r=resolveTicket(t),base=resolveBaseTicket(t);assert.ok(r.prize>base.prize);
  s=settleActive(s);assert.equal(s.cash,1000000n+r.prize);assert.deepEqual(settleActive(s),s);
  assert.equal(s.progression.claimed.includes('jackpot:T11'),base.prize>=3000000n);

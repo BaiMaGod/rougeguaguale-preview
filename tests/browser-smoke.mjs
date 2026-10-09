@@ -73,9 +73,9 @@ try{
  assert.deepEqual(restored.committedLayout,selected.committedLayout);assert.deepEqual(restored.choices,[0]);checks.push('Partial scratch locks choice and survives refresh');
  const legacy={...stateFor(fixture('T01','won')),version:31};delete legacy.progression;
  await install(legacy);const migrated=await page.evaluate(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')));
- assert.equal(migrated.version,33);assert.ok(migrated.progression.points>0);assert.ok(await page.evaluate(()=>!!localStorage.getItem('idiom-v31-base-backup')));
+ assert.equal(migrated.version,34);assert.ok(migrated.progression.points>0);assert.ok(await page.evaluate(()=>!!localStorage.getItem('idiom-v31-base-backup')));
  assert.deepEqual(migrated.active.committedLayout,legacy.active.committedLayout);checks.push('V3.1 migration grants milestones and preserves original ticket');
- const first={...newGame('first-award'),active:fixture('T01','won')};await install(first);await scratch(0);await page.getByRole('button',{name:/^领取 /}).click();
+ const first={...newGame('first-award'),bought:1,active:fixture('T01','won')};await install(first);await scratch(0);await page.getByRole('button',{name:/^领取 /}).click();
  const points=await page.evaluate(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).progression.points);assert.ok(points>=3);
  await page.reload();await ready();assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).progression.points),points);checks.push('First win earns fortune once across reload');
  const pending={...stateFor(fixture('T01','won')),progression:progression()};await install(pending);

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {CARDS} from '../build/idiom/config.js';
 import {growthModel,zeroLevels} from '../build/idiom/growth.js';
 import {newGame} from '../build/idiom/wallet.js';
+import {chooseRunBoost} from '../build/idiom/rebirth.js';
 import {buyMachine,configureMachine,startMachine,advanceMachine,MACHINE_LEVELS,defaultPolicy} from '../build/idiom/machine.js';
 const samples=Number(process.env.MACHINE_SAMPLES??1000);assert.ok(Number.isInteger(samples)&&samples>=1000&&samples<=10000);
 const rows=[];
@@ -14,8 +15,10 @@ for(const level of [1,2,3,4])for(const def of CARDS.filter(c=>c.id!=='T18')){
  let playedMs=0,payout=0n,sumSquared=0,lastProcessed=0;
  const step=Math.min(1000,MACHINE_LEVELS[level].ms);
  while(state.machine.processed<samples){
+  while(state.runBuild.pending)state=chooseRunBoost(state,null);
   if(!state.machine.running){
    if(state.machine.job){state=claimMachine(state,false);}
+   while(state.runBuild.pending)state=chooseRunBoost(state,null);
    if(level===1&&!state.machine.job&&state.machine.queue.length===0&&state.machine.processed<samples)state=enqueueMachine(state,def.id,Math.min(5,samples-state.machine.processed));
    if(state.machine.processed<samples)state=startMachine(state);
   }

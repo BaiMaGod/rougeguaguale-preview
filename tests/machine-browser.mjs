@@ -33,6 +33,9 @@ try{
  assert.deepEqual(restored.active.committedLayout,paused.active.committedLayout);await click('start');
  await page.waitForFunction(()=>{const m=JSON.parse(localStorage.getItem('idiom-run-v31-base')).machine;return m.processed===1&&!m.running;});checks.push('Pause, cancel only unpaid tasks, restore paid ticket and finish once');
  await click('reset');await page.locator('[name=autoBuy]').check();await page.locator('[name=limit]').fill('20');await page.locator('[name=reserve]').fill('0');await click('settings');await click('start');
+ await page.waitForFunction(()=>!!JSON.parse(localStorage.getItem('idiom-run-v31-base')).runBuild.pending);
+ while((await saved()).runBuild.pending)await page.locator('[data-run-action=skip]').click();
+ await page.getByRole('button',{name:'自动机器',exact:true}).click();await click('start');
  await page.waitForFunction(()=>{const m=JSON.parse(localStorage.getItem('idiom-run-v31-base')).machine;return m.processed===4&&!m.running;},null,{timeout:25000});
  const bounded=await saved();assert.equal(bounded.machine.sessionSpent,'6');assert.equal(bounded.machine.sessionBought,3);assert.match(bounded.machine.message,/预算/);checks.push('Auto buy/claim stops exactly at ticket-fee budget');
  await shot('machine-budget-stop');

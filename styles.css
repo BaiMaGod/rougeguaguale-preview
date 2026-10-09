@@ -78,5 +78,8 @@
 .idiom-machine-form .idiom-btn{font-size:24px}
 #machine-progress{width:100%;height:24px;accent-color:#edc580}
 .idiom-catalog .machine-result{color:#f1d6a4;font-weight:700}.idiom-catalog .machine-jackpot{color:#ffdb87;font-size:30px;font-weight:900;padding:15px;border:1px solid #dcb96e;border-radius:12px;background:#5b4428}
+.idiom-growth-tabs{display:flex;gap:10px;margin:0 0 22px}.idiom-growth-tabs .idiom-btn{flex:1;min-width:0;font-size:23px;min-height:68px;margin:0;padding:10px}
+.idiom-reset-table{width:100%;border-collapse:collapse;font-size:21px;line-height:1.45;margin:20px 0}.idiom-reset-table th,.idiom-reset-table td{padding:15px 12px;border:1px solid #5e7089;text-align:left;width:50%}.idiom-reset-table th{color:#edc580;background:#34445c}.idiom-reset-table td{color:#d7e0eb;background:#243247}
+.idiom-catalog .idiom-rebirth-warning,.idiom-dialog .idiom-rebirth-warning{color:#ffc6a4;font-weight:800;padding:16px;background:#5a382b;border-radius:14px}
 .idiom-modal{position:absolute;inset:0;background:#070e1dd9;display:flex;align-items:center;padding:48px}.idiom-dialog{width:100%;background:#2f3c50;border:2px solid #dfbf8b;border-radius:28px;padding:36px}.idiom-dialog p{font-size:25px;line-height:1.65}.idiom-dialog .idiom-title{font-size:35px;color:#f1c89a}.idiom-legacy{color:#efd39f;font-size:23px}
 

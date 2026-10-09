@@ -44,9 +44,9 @@ export function machineOrder(cardId:CardId,nonce:string,policy:MachinePolicy):nu
 const integer=(n:unknown)=>{if(typeof n!=='number'||!Number.isSafeInteger(n)||n<0)throw new Error('机器计数无效');return n;};
 const amount=(n:unknown)=>{if(typeof n!=='string'||!/^\d{1,60}$/.test(n))throw new Error('机器金额无效');return BigInt(n);};
 function readPolicy(p:MachinePolicy):MachinePolicy {return validatePolicy({...p,target:amount(p?.target)});}
-export function restoreMachine(value:unknown,active:TicketInstance|null,unlocked:number):MachineState {
+export function restoreMachine(value:unknown,active:TicketInstance|null,unlocked:number,automationUnlocked=false):MachineState {
  const m=value as MachineState;if(!m||typeof m.running!=='boolean'||typeof m.autoBuy!=='boolean'||typeof m.autoClaim!=='boolean'||typeof m.message!=='string'||m.message.length>200)throw new Error('机器存档无效');
- const level=integer(m.level);if(level>4||level<2&&(m.autoBuy||m.autoClaim))throw new Error('机器权限无效');
+ const level=integer(m.level);if(level>4||(level<1||level<2&&!automationUnlocked)&&(m.autoBuy||m.autoClaim))throw new Error('机器权限无效');
  if(!Array.isArray(m.queue)||m.queue.length>MACHINE_LEVELS[level].capacity)throw new Error('机器队列无效');
  const task=(t:MachineTask):MachineTask=>({cardId:allowedMachineCard(t.cardId,unlocked),policy:readPolicy(t.policy)});
  const queue=m.queue.map(task),policy=readPolicy(m.policy),repeatCard=allowedMachineCard(m.repeatCard,unlocked);

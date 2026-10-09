@@ -109,7 +109,7 @@ test('T18拒绝排队与自动补票；手动恶魔暂停机器并保留永久�
 });
 test('旧成长档迁移、损坏机器记录被拒绝并保留原文本',()=>{
  const old={...newGame('migration'),version:32};delete old.machine;const raw=serializeGame(old),map=new Map([[SAVE_KEY,raw]]),storage={getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,v)};
- const migrated=loadGame(storage,'unused').state;assert.equal(migrated.version,33);assert.equal(migrated.machine.level,0);assert.deepEqual(migrated.progression,old.progression);assert.equal(map.get('idiom-v32-growth-backup'),raw);
+ const migrated=loadGame(storage,'unused').state;assert.equal(migrated.version,34);assert.equal(migrated.machine.level,0);assert.deepEqual(migrated.progression,old.progression);assert.equal(map.get('idiom-v32-growth-backup'),raw);
  const job=advanceMachine(startMachine(enqueueMachine(setup('corruption'),'T01')),100);
  for(const mutation of [r=>r.machine.job.nonce='wrong',r=>r.machine.job.order=[9],r=>r.machine.sessionSpent='99999999999999',r=>r.machine.job.elapsedMs=9999,r=>r.machine.repeatCard='T18',r=>r.machine.purchased=7]){
   const r=JSON.parse(serializeGame(job));mutation(r);assert.throws(()=>restoreGame(JSON.stringify(r)));

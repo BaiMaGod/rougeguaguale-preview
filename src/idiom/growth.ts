@@ -3,7 +3,7 @@ export const GROWTH_VERSION='v3.1-growth-draft-1';
 export const TECHS=['luck','jackpot','bonus','scratch'] as const;
 export type Tech=typeof TECHS[number];
 export type Levels=Record<Tech,number>;
-export interface Progression {points:number;earned:number;levels:Levels;claimed:string[];}
+export interface Progression {points:number;earned:number;levels:Levels;claimed:string[];rebirthEarned?:number;}
 export const COSTS=[1,2,3,4,6,8,10,12,15,20] as const;
 export const TECH_INFO:Record<Tech,{name:string;description:string}>={
  luck:{name:'福运 · 幸运值',description:'普通奖池中奖权重 +5%/级'},
@@ -46,9 +46,14 @@ export function restoreProgression(value:unknown):Progression {
  const p=value as Progression;if(!p||!Array.isArray(p.claimed)||new Set(p.claimed).size!==p.claimed.length)throw new Error('福运里程碑无效');
  const levels=readLevels(p.levels);let earned=0;
  for(const id of p.claimed){const m=MILESTONES.find(m=>m.id===id);if(!m)throw new Error('未知福运里程碑');earned+=m.points;}
+ const rebirthEarned=p.rebirthEarned??0;if(!Number.isSafeInteger(rebirthEarned)||rebirthEarned<0)throw new Error('转生福运点无效');earned+=rebirthEarned;
  const spent=TECHS.reduce((sum,t)=>sum+COSTS.slice(0,levels[t]).reduce((a,b)=>a+b,0),0);
  if(p.earned!==earned||!Number.isSafeInteger(p.points)||p.points<0||p.points!==earned-spent)throw new Error('福运点余额无效');
- return {points:p.points,earned,levels,claimed:[...p.claimed]};
+ return {points:p.points,earned,levels,claimed:[...p.claimed],...(p.rebirthEarned!==undefined?{rebirthEarned}:{})};
+}
+export function addRebirthPoints(p:Progression,gain:number):Progression {
+ if(!Number.isSafeInteger(gain)||gain<1||!Number.isSafeInteger(p.earned+gain))throw new Error('转生奖励无效');
+ return {...p,points:p.points+gain,earned:p.earned+gain,rebirthEarned:(p.rebirthEarned??0)+gain};
 }
 export interface GrowthModel {factor:number;winChance:number;tiers:number[];safety:number[];bonusBps:number;rtp:number;}
 const modelCache=new Map<string,GrowthModel>();
