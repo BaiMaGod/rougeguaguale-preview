@@ -43,7 +43,7 @@
 #idiom-controls{position:absolute;inset:0;z-index:30;pointer-events:none;color:#f6e9ca}
 #idiom-controls button,#idiom-controls a,#idiom-controls .idiom-catalog,#idiom-controls .idiom-modal{pointer-events:auto}
 .idiom-top{position:absolute;left:32px;right:32px;top:198px;display:flex;gap:12px}
-.idiom-top .idiom-btn{flex:1;font-size:23px;min-height:82px;margin:0}
+.idiom-top .idiom-btn{flex:1;font-size:21px;min-height:82px;margin:0;padding:12px 8px}
 #game-root[data-screen="ticket"] .idiom-top{top:1126px}
 .idiom-btn{width:100%;border:1px solid #e5c38f;background:linear-gradient(#ffe3a4,#ddad64);color:#2e3849;border-radius:16px;min-height:78px;padding:13px 18px;font-size:27px;font-weight:800;cursor:pointer;touch-action:manipulation;margin:8px 0;box-shadow:0 5px 0 #795e3c}
 .idiom-btn.secondary{background:#2d3b50;border-color:#586b86;color:#d9e2ed;box-shadow:none}
@@ -62,5 +62,12 @@
 #game-root[data-screen="ticket"] .idiom-footer .idiom-btn{min-height:64px;margin:0;padding:8px 16px;font-size:24px}
 #game-root[data-screen="ticket"] .idiom-footer .idiom-tip{font-size:17px;padding:6px 10px}
 .idiom-receipt{padding:16px 20px;border:1px solid #5b6c80;border-radius:16px;margin:14px 0;background:#27364a}
+.idiom-tech{padding:20px 25px;border:1px solid #66768d;border-radius:20px;margin:18px 0;background:linear-gradient(120deg,#334258,#263348)}
+.idiom-catalog .idiom-tech-name{font-size:28px;font-weight:800;color:#edc580}
+.idiom-catalog .idiom-growth-balance{font-size:28px;color:#edc580}
+.idiom-tech .idiom-btn{font-size:24px;min-height:66px}
+.idiom-catalog .idiom-milestone{font-size:20px;padding:10px 14px;border-bottom:1px solid #34445a}
+.idiom-catalog .idiom-milestone.done{color:#b6d7ae}
+.idiom-pool{overflow-wrap:anywhere}
 .idiom-modal{position:absolute;inset:0;background:#070e1dd9;display:flex;align-items:center;padding:48px}.idiom-dialog{width:100%;background:#2f3c50;border:2px solid #dfbf8b;border-radius:28px;padding:36px}.idiom-dialog p{font-size:25px;line-height:1.65}.idiom-dialog .idiom-title{font-size:35px;color:#f1c89a}.idiom-legacy{color:#efd39f;font-size:23px}
 

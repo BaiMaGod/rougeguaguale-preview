@@ -1,21 +1,19 @@
-name: Build TypeScript and Deploy LayaAir 3.4
+name: Build and Deploy V3.1 Permanent Growth
 on:
   push:
-    branches: ["main"]
+    branches: [main]
   workflow_dispatch:
-
 permissions:
   contents: read
   pages: write
   id-token: write
-
 concurrency:
-  group: "pages"
+  group: pages
   cancel-in-progress: true
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -24,53 +22,43 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install TypeScript
-        run: npm install --no-package-lock
-      - name: Compile and test game rules
-        run: npm test
-      - name: Run reproducible nine-round balance simulations
-        run: node tests/balance-sim.mjs
-      - name: Download official LayaAir 3.4.0 engine library
-        shell: bash
+      - run: npm install --no-package-lock
+      - run: npm test
+      - run: node tests/idiom-balance.mjs > idiom-balance.json
+      - name: Download official LayaAir 3.4 runtime
         run: |
-          set -euo pipefail
-          curl -fL --retry 3 --connect-timeout 30 --max-time 180 \
-            "https://github.com/layabox/LayaAir/releases/download/v3.4.0/LayaAir_3.4.0_libs.zip" \
-            -o "${RUNNER_TEMP}/laya.zip"
-          mkdir -p "${RUNNER_TEMP}/laya-unpack" site/libs
-          unzip -q "${RUNNER_TEMP}/laya.zip" -d "${RUNNER_TEMP}/laya-unpack"
-          for name in laya.core.js laya.ui.js laya.webgl_2D.js; do
-            file="$(find "${RUNNER_TEMP}/laya-unpack" -type f -name "$name" -print -quit)"
-            if [ -z "$file" ]; then echo "Missing required engine file: $name"; exit 1; fi
-            cp "$file" "site/libs/$name"
+          curl -fL --retry 3 https://github.com/layabox/LayaAir/releases/download/v3.4.0/LayaAir_3.4.0_libs.zip -o /tmp/laya-libs.zip
+          unzip -q /tmp/laya-libs.zip -d /tmp/laya-libs
+          mkdir -p libs
+          for engine_file in laya.core.js laya.webgl_2D.js; do
+            engine_path="$(find /tmp/laya-libs -name "$engine_file" -print -quit)"
+            test -n "$engine_path"
+            cp "$engine_path" "libs/$engine_file"
           done
-      - name: Assemble static HTML5 build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+        env:
+          BROWSER_QUICK: '1'
+      - name: Assemble verified static game
         run: |
-          mkdir -p site/build
-          cp index.html styles.css site/
-          cp build/*.js site/build/
+          mkdir -p site
+          cp index.html legacy.html styles.css site/
+          cp -R build libs site/
           touch site/.nojekyll
+          test -s site/build/idiom/growth.js
+          test -s site/build/legacy-main.js
           test -s site/libs/laya.core.js
-          test -s site/build/main.js
-          test -s site/build/rules.js
-          test -s site/build/scratch.js
-      - name: Browser smoke test (real drag-to-scratch)
-        run: |
-          npm install --no-save playwright@1.56.1
-          npx playwright install chromium
-          python3 -m http.server 18080 --directory site >/tmp/foil-http.log 2>&1 &
-          node tests/smoke.mjs
-          node tests/progression-ui.mjs
-          node tests/items-ui.mjs
-          node tests/advanced-items-ui.mjs
-          node tests/expansion-ui.mjs
-          node tests/new-symbols-ui.mjs
-          node tests/stamps-v1-ui.mjs
-          node tests/mode-v1-ui.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: idiom-growth-deployment-qa
+          path: |
+            qa-evidence/
+            idiom-balance.json
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: ./site
+          path: site
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

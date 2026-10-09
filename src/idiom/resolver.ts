@@ -1,7 +1,8 @@
 import {cardDefinition} from './config.js';
 import type {TicketInstance} from './generator.js';
+import {boostedPrize} from './growth.js';
 export interface Resolution {status:'playing'|'won'|'lost'|'bankrupt'; prize:bigint; accrued:bigint; message:string;}
-export function resolveTicket(t:TicketInstance):Resolution {
+export function resolveBaseTicket(t:TicketInstance):Resolution {
  const def=cardDefinition(t.cardId),layout=t.committedLayout;
  const revealed=t.revealed.map(i=>layout[i]);
  const play=(message:string,accrued=0n):Resolution=>({status:'playing',prize:0n,accrued,message});
@@ -58,6 +59,11 @@ export function resolveTicket(t:TicketInstance):Resolution {
   case 'hearts':return result(layout.every(c=>c.kind==='heart'),layout.every(c=>c.kind==='heart')?'三颗真心，2亿！':'真心组合未完成');
   default:throw new Error('不支持的票型');
  }
+}
+export function resolveTicket(t:TicketInstance):Resolution {
+ const base=resolveBaseTicket(t);
+ return {...base,prize:boostedPrize(base.prize,t.cardId,t.growth,t.bonusRoll),
+  accrued:cardDefinition(t.cardId).mode==='cashout'?boostedPrize(base.accrued,t.cardId,t.growth,t.bonusRoll):base.accrued};
 }
 export function canScratch(t:TicketInstance,index:number):boolean {
  if(t.settled||!Number.isInteger(index)||index<0||index>=t.committedLayout.length||t.revealed.includes(index))return false;

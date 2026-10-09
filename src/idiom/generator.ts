@@ -1,23 +1,28 @@
 import {cardDefinition,BASE_WIN_CHANCE,AMOUNT_POOL,CASHOUT_SAFETY,CASHOUT_REWARDS,DRAGON_EYE_TICKET_CHANCE,LEDGER_POOL,DESTINY_POOL,type CardId} from './config.js';
+import {growthModel,readLevels,GROWTH_VERSION,type Levels} from './growth.js';
 export interface TicketCell { kind: 'number'|'symbol'|'money'|'safe'|'bomb'|'road'|'blocked'|'double'|'empty'|'eye'|'heart'|'gate'|'heaven'|'devil'|'earth'; value: string; }
 export interface TicketInstance {
  cardId: CardId; nonce: string; rngSeed: string; prizeTableVersion: string;
  committedLayout: TicketCell[]; revealed: number[]; choices: number[];
  cashout: boolean; settled: boolean;
+ growth?: Levels;
+ bonusRoll?: number;
 }
 export function seededRandom(seed:string):()=>number {
  let h=2166136261;for(const c of seed){h=Math.imul(h^c.charCodeAt(0),16777619);}
  return ()=>{h+=0x6D2B79F5;let t=Math.imul(h^h>>>15,1|h);t^=t+Math.imul(t^t>>>7,61|t);return ((t^t>>>14)>>>0)/4294967296;};
 }
-export function createIdiomTicket(cardId:CardId,seed:string,nonce:string):TicketInstance {
+export function createIdiomTicket(cardId:CardId,seed:string,nonce:string,growth?:Levels):TicketInstance {
  const def=cardDefinition(cardId),rng=seededRandom(seed);
- const wins=()=>rng()<BASE_WIN_CHANCE[cardId];
+ const levels=growth?readLevels(growth):undefined,model=levels?growthModel(cardId,levels):undefined;
+ const wins=()=>rng()<(model?.winChance??BASE_WIN_CHANCE[cardId]);
  const int=(min:number,max:number)=>min+Math.floor(rng()*(max-min+1));
  const cell=(kind:TicketCell['kind'],value:string|number|bigint):TicketCell=>({kind,value:String(value)});
  let layout:TicketCell[]=[];
  const numbers=(values:number[])=>values.map(n=>cell('number',n));
  switch(def.mode){
-  case 'amount':{const r=rng();layout=[cell('money',r<AMOUNT_POOL[0].chance?AMOUNT_POOL[0].prize:r<AMOUNT_POOL[0].chance+AMOUNT_POOL[1].chance?AMOUNT_POOL[1].prize:0n)];break;}
+  case 'amount':{const r=rng();const prize=model?(r<model.winChance?(r/model.winChance<model.tiers[0]?5n:10n):0n):r<AMOUNT_POOL[0].chance?AMOUNT_POOL[0].prize:r<AMOUNT_POOL[0].chance+AMOUNT_POOL[1].chance?AMOUNT_POOL[1].prize:0n;
+   layout=[cell('money',prize)];break;}
   case 'pair':{const a=int(0,3),b=(a+int(1,3))%4,c=(b+1)%4;
    const icons=['福','玉','花','果'];const win=wins();
    const vals=win?[a,a,b]:[a,b,c===a?(c+1)%4:c];
@@ -39,13 +44,13 @@ export function createIdiomTicket(cardId:CardId,seed:string,nonce:string):Ticket
    if(!win){layout[path[2]]=cell('blocked','岩');}break;
   }
   case 'cashout':{
-   layout=CASHOUT_REWARDS.map((value,i)=>rng()<CASHOUT_SAFETY[i]?cell('money',value):cell('bomb','雷'));break;
+   layout=CASHOUT_REWARDS.map((value,i)=>rng()<(model?.safety[i]??CASHOUT_SAFETY[i])?cell('money',value):cell('bomb','雷'));break;
   }
   case 'double':{const win=wins();layout=[cell('money',2000000),cell('money',3000000),cell(win?'double':'empty',win?'同领':'无奖')];break;}
-  case 'eye':{const eye=rng()<DRAGON_EYE_TICKET_CHANCE?int(0,2):-1;layout=Array.from({length:3},(_,i)=>cell(i===eye?'eye':'empty',i===eye?'真':'假'));break;}
+  case 'eye':{const eye=rng()<(model?.winChance??DRAGON_EYE_TICKET_CHANCE)?int(0,2):-1;layout=Array.from({length:3},(_,i)=>cell(i===eye?'eye':'empty',i===eye?'真':'假'));break;}
   case 'ledger':{
    const r=rng();let cumulative=0,target=2000000;
-   for(const tier of LEDGER_POOL){cumulative+=tier.chance;if(r<cumulative){target=tier.target;break;}}
+   for(const [i,tier] of LEDGER_POOL.entries()){cumulative+=model?model.winChance*model.tiers[i]:tier.chance;if(r<cumulative){target=tier.target;break;}}
    const base=Math.floor(target/6);layout=Array.from({length:6},(_,i)=>cell('money',i===5?target-base*5:base));break;
   }
   case 'heart':layout=[cell(wins()?'heart':'empty','心')];break;
@@ -57,5 +62,5 @@ export function createIdiomTicket(cardId:CardId,seed:string,nonce:string):Ticket
   case 'destiny':layout=Array.from({length:3},()=>{const r=rng(),heaven=r<DESTINY_POOL.heaven,devil=r<DESTINY_POOL.heaven+DESTINY_POOL.devil;
    return cell(heaven?'heaven':devil?'devil':'earth',heaven?'天堂':devil?'恶魔':'凡间');});break;
  }
- return {cardId,nonce,rngSeed:seed,prizeTableVersion:def.prizeTableVersion,committedLayout:layout,revealed:[],choices:[],cashout:false,settled:false};
+ return {cardId,nonce,rngSeed:seed,prizeTableVersion:levels?GROWTH_VERSION:def.prizeTableVersion,committedLayout:layout,revealed:[],choices:[],cashout:false,settled:false,...(levels?{growth:levels,bonusRoll:rng()}:{})};
 }

@@ -7,6 +7,7 @@ import {CARDS} from '../build/idiom/config.js';
 import {createIdiomTicket} from '../build/idiom/generator.js';
 import {resolveTicket,revealCell,cashOut} from '../build/idiom/resolver.js';
 import {newGame,serializeGame,SAVE_KEY} from '../build/idiom/wallet.js';
+import {MILESTONES,TECHS,COSTS} from '../build/idiom/growth.js';
 const base=resolve('.'),evidence=resolve('qa-evidence');await mkdir(evidence,{recursive:true});
 const mime={'.html':'text/html','.css':'text/css','.js':'text/javascript','.json':'application/json'};
 const server=createServer(async(req,res)=>{
@@ -37,7 +38,7 @@ function finish(ticket){
   if(mode==='cashout'&&t.revealed.length===3&&resolveTicket(t).status==='playing'){t=cashOut(t);break;}}
  return resolveTicket(t);
 }
-function fixture(id,status){for(let i=0;i<100000;i++){const t=createIdiomTicket(id,'browser-'+id+'-'+i,'browser-'+i);if(finish(t).status===status)return t;}throw new Error('No fixture');}
+function fixture(id,status,growth){for(let i=0;i<100000;i++){const t=createIdiomTicket(id,'browser-'+id+'-'+i,'browser-'+i,growth);if(finish(t).status===status)return t;}throw new Error('No fixture');}
 function stateFor(t){return {...newGame('browser'),cash:2000000000000n-CARDS.find(c=>c.id===t.cardId).price,peak:2000000000000n,unlockedCount:18,bought:1,active:t};}
 const cdp=await context.newCDPSession(page);
 async function touch(type,x,y){await cdp.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{x,y,radiusX:2,radiusY:2,force:1}]});}
@@ -55,6 +56,8 @@ async function scratch(index,partial=false){
  await touch('touchEnd',startX,startY);
  if(!partial)await page.waitForFunction(i=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).active.revealed.includes(i),index,{timeout:5000});
 }
+function progression(level=0){const earned=MILESTONES.reduce((s,m)=>s+m.points,0);return {
+ points:earned-4*COSTS.slice(0,level).reduce((a,b)=>a+b,0),earned,levels:Object.fromEntries(TECHS.map(t=>[t,level])),claimed:MILESTONES.map(m=>m.id)};}
 try{
  console.log('QA started');
  await page.goto(url);await ready();assert.equal(await page.locator('.idiom-card').count(),18);
@@ -68,6 +71,37 @@ try{
  assert.equal(await page.locator('canvas[data-index="1"]').evaluate(e=>getComputedStyle(e).pointerEvents),'none');
  await page.reload();await ready();const restored=await page.evaluate(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).active);
  assert.deepEqual(restored.committedLayout,selected.committedLayout);assert.deepEqual(restored.choices,[0]);checks.push('Partial scratch locks choice and survives refresh');
+ const legacy={...stateFor(fixture('T01','won')),version:31};delete legacy.progression;
+ await install(legacy);const migrated=await page.evaluate(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')));
+ assert.equal(migrated.version,32);assert.ok(migrated.progression.points>0);assert.ok(await page.evaluate(()=>!!localStorage.getItem('idiom-v31-base-backup')));
+ assert.deepEqual(migrated.active.committedLayout,legacy.active.committedLayout);checks.push('V3.1 migration grants milestones and preserves original ticket');
+ const first={...newGame('first-award'),active:fixture('T01','won')};await install(first);await scratch(0);await page.getByRole('button',{name:/^领取 /}).click();
+ const points=await page.evaluate(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).progression.points);assert.ok(points>=3);
+ await page.reload();await ready();assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).progression.points),points);checks.push('First win earns fortune once across reload');
+ const pending={...stateFor(fixture('T01','won')),progression:progression()};await install(pending);
+ const previous=await page.evaluate(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).active);
+ await page.getByRole('button',{name:'永久成长',exact:true}).click();
+ for(const tech of TECHS)await page.locator(`[data-upgrade="${tech}"]`).click();
+ const upgraded=await page.evaluate(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')));
+ assert.deepEqual(upgraded.active,previous);assert.deepEqual(upgraded.progression.levels,{luck:1,jackpot:1,bonus:1,scratch:1});
+ assert.equal(upgraded.progression.points,pending.progression.points-4);
+ await page.locator('.idiom-catalog').evaluate(e=>e.scrollTop=0);await shot('mobile-growth');
+ await page.getByRole('button',{name:'当前刮卡',exact:true}).click();assert.equal(await page.locator('canvas[data-index="0"]').getAttribute('data-brush-width'),'30');
+ await scratch(0);await page.getByRole('button',{name:/^领取 /}).click();await page.getByRole('button',{name:/再买一张/}).click();
+ assert.ok(Number(await page.locator('canvas[data-index="0"]').getAttribute('data-brush-width'))>30);
+ const fresh=await page.evaluate(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).active);assert.deepEqual(fresh.growth,upgraded.progression.levels);
+ await page.reload();await ready();assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).active),fresh);checks.push('Four technology upgrades debit fortune, freeze old ticket and apply to next purchase');
+ for(const id of ['T01','T11','T14','T16']){
+  const t=fixture(id,'won',progression(5).levels),def=CARDS.find(c=>c.id===id),s={...stateFor(t),progression:progression(5)};await install(s);
+  assert.ok(Number(await page.locator('canvas[data-index="0"]').getAttribute('data-brush-width'))>30);
+  const indices=Array.from({length:def.cells},(_,i)=>i);
+  for(const i of indices){if(await page.locator('#game-root').getAttribute('data-status')!=='playing')break;await scratch(i);
+   if(def.mode==='cashout'&&i===2){await page.getByRole('button',{name:/现在收手/}).click();break;}}
+  if(await page.locator('#game-root').getAttribute('data-settled')!=='true')await page.getByRole('button',{name:/^领取 /}).click();
+  assert.equal(await page.locator('#game-root').getAttribute('data-cash'),(s.cash+finish(t).prize).toString());
+  await page.reload();await ready();assert.equal(await page.locator('#game-root').getAttribute('data-cash'),(s.cash+finish(t).prize).toString());
+  await shot('growth-'+id);checks.push(id+' upgraded real scratch, prize and restore');
+ }
  const cases=process.env.BROWSER_QUICK==='1'?CARDS.filter(d=>['T01','T09','T17','T18'].includes(d.id)):CARDS;
  for(const def of cases){
   console.log('QA card '+def.id+' started');
@@ -100,5 +134,5 @@ try{
  assert.deepEqual(errors,[]);
  console.log(JSON.stringify({checks:checks.length,results:checks,pageErrors:errors},null,2));
  // Small review screenshots also appear in the job log for restricted artifact clients.
- for(const name of ['mobile-catalog','mobile-T09','mobile-T17','mobile-bankrupt'])console.log('QA_IMAGE '+name+' '+(await readFile(resolve(evidence,name+'.jpg'))).toString('base64'));
+ for(const name of ['mobile-catalog','mobile-growth','growth-T14','mobile-T09','mobile-T17','mobile-bankrupt'])console.log('QA_IMAGE '+name+' '+(await readFile(resolve(evidence,name+'.jpg'))).toString('base64'));
 }finally{clearTimeout(hardTimeout);await browser.close();server.closeAllConnections();await new Promise(ok=>server.close(ok));}

@@ -5,6 +5,7 @@
 export interface ScratchCellOptions {
   index: number; x: number; y: number; size: number; onFinished: (index: number) => void;
   canStart?: () => boolean; onStarted?: (index:number) => void; shape?: 'heart';
+  brushWidth?: number;
 }
 interface Point { x:number; y:number; }
 interface Dust {
@@ -133,7 +134,7 @@ export class ScratchLayer {
     if(this.raf){cancelAnimationFrame(this.raf);this.raf=0;}
     this.emissions=0;this.fx.dataset.emissions='0';
   }
-  add({index,x,y,size,onFinished,canStart,onStarted,shape}:ScratchCellOptions):void{
+  add({index,x,y,size,onFinished,canStart,onStarted,shape,brushWidth=BRUSH}:ScratchCellOptions):void{
     this.seen.add(index);
     if(this.cells.has(index))return;
     if(!this.foilTextures.has(size))this.foilTextures.set(size,coating(size));
@@ -142,6 +143,7 @@ export class ScratchLayer {
     canvas.dataset.index=String(index);
     canvas.dataset.material='silver-grain-v2';
     canvas.dataset.coverage='0';
+    const brush=Math.max(BRUSH,Math.min(48,brushWidth));canvas.dataset.brushWidth=String(brush);
     canvas.style.cssText='position:absolute;left:'+x+'px;top:'+y+'px;width:'+size+'px;height:'+size+'px;touch-action:none;border-radius:15px;cursor:crosshair;overflow:hidden;';
     if(shape==='heart')canvas.style.clipPath='polygon(50% 94%,8% 53%,2% 32%,9% 15%,25% 7%,40% 12%,50% 24%,60% 12%,75% 7%,91% 15%,98% 32%,92% 53%)';
     const ctx=canvas.getContext('2d',{willReadFrequently:true});
@@ -164,7 +166,7 @@ export class ScratchLayer {
       const dx=b.x-a.x,dy=b.y-a.y,dist=Math.hypot(dx,dy);
       if(dist<.01)return;
       ctx.save();ctx.globalCompositeOperation='destination-out';
-      ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=BRUSH;
+      ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=brush;
       ctx.strokeStyle='#000';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
       const steps=Math.min(30,Math.ceil(dist/7));
       const nx=-dy/dist,ny=dx/dist;
@@ -174,7 +176,7 @@ export class ScratchLayer {
         if(i%2===0){
           // Scalloped, uneven edge instead of one perfectly straight soft line.
           const side=i%4===0?1:-1;
-          const offset=(BRUSH*.44)+(Math.random()*5);
+          const offset=(brush*.44)+(Math.random()*5);
           ctx.beginPath();
           ctx.arc(cx+nx*offset*side,cy+ny*offset*side,1.2+Math.random()*2.6,0,Math.PI*2);
           ctx.fill();
@@ -229,7 +231,7 @@ export class ScratchLayer {
       this.audio.start();
       // Initial pressure mark should be visible, but clicking alone reveals little.
       ctx.save();ctx.globalCompositeOperation='destination-out';
-      ctx.beginPath();ctx.arc(prior.x,prior.y,BRUSH*.38,0,Math.PI*2);ctx.fill();ctx.restore();
+      ctx.beginPath();ctx.arc(prior.x,prior.y,brush*.38,0,Math.PI*2);ctx.fill();ctx.restore();
       this.emit(x+prior.x,y+prior.y,0,-1,3);
     });
     canvas.addEventListener('pointermove',e=>{

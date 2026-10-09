@@ -1,6 +1,7 @@
 import {CARDS,cardDefinition,formatMoney,DRAFT_PROBABILITIES,type CardId} from './idiom/config.js';
 import {canScratch,resolveTicket} from './idiom/resolver.js';
-import {newGame,loadGame,purchaseTicket,startScratch,scratchCell,settleActive,stopAndCollect,recoveryCash,serializeGame,SAVE_KEY,type GameState} from './idiom/wallet.js';
+import {newGame,loadGame,purchaseTicket,startScratch,scratchCell,settleActive,stopAndCollect,recoveryCash,serializeGame,upgradeTech,SAVE_KEY,type GameState} from './idiom/wallet.js';
+import {TECHS,TECH_INFO,COSTS,MILESTONES,growthModel,scratchTool,zeroLevels} from './idiom/growth.js';
 import {ScratchLayer} from './scratch.js';
 import type {TicketCell} from './idiom/generator.js';
 
@@ -13,7 +14,7 @@ const loadError=document.getElementById('load-error')!;
 const foil=new ScratchLayer(foilRoot);
 const qa=new URLSearchParams(location.search).get('qa')==='1';
 let state:GameState=newGame(crypto.randomUUID()),selected:CardId='T01';
-let scene:any,screen:'catalog'|'ticket'|'records'='catalog',riskDialog=false;
+let scene:any,screen:'catalog'|'ticket'|'records'|'growth'='catalog',riskDialog=false;
 let notice='',legacyFound=false;
 const controls=document.createElement('div');controls.id='idiom-controls';root.appendChild(controls);
 const money=(n:bigint)=>formatMoney(n)+'元';
@@ -67,6 +68,15 @@ function onReveal(index:number,nonce:string):void {
   return r.status==='lost'||r.status==='bankrupt'?settleActive(next):next;
  });
 }
+function growthSummary(id:CardId,levels=state.progression.levels):string {
+ const m=growthModel(id,levels),mode=cardDefinition(id).mode;
+ const probability=(p:number)=>(p*100).toFixed(2)+'%';
+ let pool=DRAFT_PROBABILITIES[id];
+ if(m.winChance>0)pool=(mode==='eye'?'有真眼 '+probability(m.winChance)+' · 盲选中奖 '+probability(m.winChance/3):'中奖 '+probability(m.winChance));
+ if(m.tiers.length)pool+=' · 中奖后最高档 '+probability(m.tiers.at(-1)!);
+ if(mode==='cashout')pool='每步安全 '+m.safety.map(probability).join(' / ');
+ return pool+' · 奖金 ×'+(m.bonusBps/10000).toFixed(2);
+}
 interface Slot {index:number;x:number;y:number;size:number;label:string;heart?:boolean;}
 function slots(id:CardId):Slot[] {
  const mode=cardDefinition(id).mode;
@@ -104,9 +114,10 @@ function ticketView():void {
  panel(34,210,682,166,def.color,30);panel(34,295,682,82,def.color,0);
  text(65,225,def.id+'  /  成语刮刮卡',22,C.ink,580);
  text(65,267,def.name,51,C.ink,580,'left',true);
- text(65,333,'票价 '+money(def.price)+'     最高 '+money(def.headlinePrize),22,C.ink,620);
+ text(65,333,'票价 '+money(def.price)+'     基础最高 '+money(def.headlinePrize),22,C.ink,620);
  text(66,390,def.rule,25,C.ink,618,'center',true);
- const hint=text(66,430,def.hint,19,'#6c6d6c',618,'center');hint.wordWrap=true;hint.height=55;
+ const tool=scratchTool(t.growth?.scratch??0),model=growthModel(t.cardId,t.growth??zeroLevels());
+ const hint=text(66,430,def.hint+'\n'+tool.name+' Lv.'+(t.growth?.scratch??0)+' · 本票奖金 ×'+(model.bonusBps/10000).toFixed(2),19,'#6c6d6c',618,'center');hint.wordWrap=true;hint.height=55;
  if(def.mode==='multiply')text(336,691,'×',38,C.ink,78,'center',true);
  if(def.mode==='compare')text(336,691,'VS',29,C.ink,78,'center',true);
  if(def.mode==='sum')text(100,970,'目标 100  ·  当前 '+r.accrued.toString(),24,C.ink,550,'center',true);
@@ -123,7 +134,7 @@ function ticketView():void {
   if(!open&&!t.settled){
    const nonce=t.nonce;
    foil.add({...slot,onFinished:i=>onReveal(i,nonce),canStart:()=>state.active?.nonce===nonce&&canScratch(state.active,slot.index),
-    onStarted:i=>update(s=>startScratch(s,i)),shape:slot.heart?'heart':undefined});
+    onStarted:i=>update(s=>startScratch(s,i)),shape:slot.heart?'heart':undefined,brushWidth:tool.width});
    foil.setCellEnabled(slot.index,allowed);
    const canvas=foilRoot.querySelector<HTMLCanvasElement>(`canvas[data-index="${slot.index}"]`);
    if(canvas)canvas.style.filter=dim?'brightness(.78)':'none';
@@ -146,7 +157,7 @@ function renderCatalog():void {
   const unlocked=i<state.unlockedCount,b=document.createElement('button');b.type='button';
   b.className='idiom-card'+(unlocked?'':' locked')+(def.id===selected?' selected':'');b.dataset.cardId=def.id;b.style.setProperty('--accent',def.color);
   p(b,def.id+' · '+(i<6?'入门':i<12?'发展':i<16?'冲刺':'终极'),'idiom-tier');p(b,def.name,'idiom-card-name');p(b,'票价 '+money(def.price),'idiom-price');
-  p(b,def.rule,'idiom-rule');p(b,'最高 '+money(def.headlinePrize),'idiom-prize');
+  p(b,def.rule,'idiom-rule');p(b,'基础最高 '+money(def.headlinePrize),'idiom-prize');
   p(b,unlocked?`已完成 ${state.stats[def.id]?.played??0} 张 · 中奖 ${state.stats[def.id]?.won??0} 次`:'解锁：前一卡完成3张 + 最高现金'+money(def.price*2n),'idiom-lock');
   b.addEventListener('click',()=>{selected=def.id;notice=unlocked?'':'这张卡尚未解锁，先完成前一卡与财富目标';render();});grid.appendChild(b);
  });
@@ -157,8 +168,28 @@ function renderRecords():void {
  if(!state.history.length)p(scroll,'刮完第一张卡，记录会显示在这里。');
  for(const receipt of state.history){const d=box('idiom-receipt');p(d,cardDefinition(receipt.cardId).name+' · '+(receipt.status==='bankrupt'?'本局破产':receipt.prize>0n?'中奖 '+money(receipt.prize):'未中奖'));
   p(d,receipt.nonce.split(':').pop()+'号票 · 已结算','idiom-lock');scroll.appendChild(d);}
- p(scroll,'永久成长与自动刮卡机将在基础卡验收后接入。');
+ p(scroll,'首次里程碑奖励福运点；永久成长可在「永久成长」中升级。自动刮卡机将在下一阶段接入。');
  if(legacyFound){p(scroll,'旧版进度已保留，可以继续访问历史版本。');const a=document.createElement('a');a.href='./legacy.html';a.textContent='打开旧版4×4玩法';a.className='idiom-legacy';scroll.appendChild(a);}
+}
+function renderGrowth():void {
+ const scroll=box('idiom-catalog idiom-growth');controls.appendChild(scroll);
+ const progression=state.progression;
+ p(scroll,'永久成长','idiom-title');p(scroll,'可用 '+progression.points+' 福运点 · 累计获得 '+progression.earned+' 点','idiom-growth-balance');
+ p(scroll,'升级只影响新购票。普通奖池的三项增益共同受98%理论返奖上限约束，按卡种折算；单奖档不受爆率影响。','idiom-lock');
+ p(scroll,'奖金增益的不足1元部分，按比例随票锁定补足1元；刮开后不会重新计算。','idiom-lock');
+ for(const tech of TECHS){
+  const row=box('idiom-tech');row.dataset.tech=tech;const level=progression.levels[tech],info=TECH_INFO[tech];
+  p(row,info.name+'  Lv.'+level+'/10','idiom-tech-name');p(row,info.description);
+  const next=tech==='scratch'?scratchTool(Math.min(level+1,10)):null;
+  if(next)p(row,'当前 '+scratchTool(level).name+' · 面积 ×'+scratchTool(level).area.toFixed(2)+(level<10?' → ×'+next.area.toFixed(2):''),'idiom-lock');
+  const button=actionButton(level===10?'已满级':'升级 · '+COSTS[level]+' 福运点',()=>update(s=>upgradeTech(s,tech)),level===10||progression.points<COSTS[level]);
+  button.dataset.upgrade=tech;row.appendChild(button);scroll.appendChild(row);
+ }
+ p(scroll,'下一张「'+cardDefinition(selected).name+'」','idiom-tech-name');p(scroll,growthSummary(selected),'idiom-pool');
+ p(scroll,'扫雷保持4雷、天梯每层1个正确门；T15–T18固定头奖，恶魔概率始终15%。','idiom-lock');
+ p(scroll,'福运里程碑 · '+progression.claimed.length+'/'+MILESTONES.length,'idiom-tech-name');
+ p(scroll,'解锁首次卡种、首次中奖、首次头奖、财富数量级各奖励一次。旧版已达成进度会补领，恢复金不会重复刷点。','idiom-lock');
+ for(const m of MILESTONES){const done=progression.claimed.includes(m.id);p(scroll,(done?'✓ ':'○ ')+m.label+'  +'+m.points+'点',done?'idiom-milestone done':'idiom-milestone');}
 }
 function renderControls():void {
  const scrollTop=controls.querySelector('.idiom-catalog')?.scrollTop??0;controls.replaceChildren();
@@ -166,7 +197,8 @@ function renderControls():void {
  top.append(actionButton('成语卡册',()=>{screen='catalog';riskDialog=false;render();},false,screen==='catalog'?'active':'secondary'));
  top.append(actionButton('当前刮卡',()=>{screen='ticket';render();},!state.active,screen==='ticket'?'active':'secondary'));
  top.append(actionButton('刮奖记录',()=>{screen='records';render();},false,screen==='records'?'active':'secondary'));
- if(screen==='catalog')renderCatalog();else if(screen==='records')renderRecords();
+ top.append(actionButton('永久成长',()=>{screen='growth';riskDialog=false;render();},false,screen==='growth'?'active':'secondary'));
+ if(screen==='catalog')renderCatalog();else if(screen==='records')renderRecords();else if(screen==='growth')renderGrowth();
  const footer=box('idiom-footer');controls.appendChild(footer);
  if(screen==='ticket'&&state.active){
   const t=state.active,r=resolveTicket(t),def=cardDefinition(t.cardId);p(footer,notice||r.message,'idiom-message');
@@ -179,11 +211,11 @@ function renderControls():void {
   else p(footer,'手指来回擦掉银层，抬手揭晓；选择类卡一旦开始刮就锁定选择。','idiom-tip');
  }else if(screen==='catalog'){
   const def=cardDefinition(selected),locked=CARDS.indexOf(def)>=state.unlockedCount;
-  p(footer,notice||def.name+' · '+DRAFT_PROBABILITIES[def.id]+'（测试配置）','idiom-message');
+  p(footer,notice||def.name+' · '+growthSummary(def.id)+'（测试配置）','idiom-message');
   const pending=!!state.active&&!state.active.settled;
   footer.append(actionButton(pending?'继续未完成的卡':locked?'尚未解锁':`买 ${def.name} · ${money(def.price)}`,
    ()=>pending?(screen='ticket',render()):buy(),!pending&&(locked||state.cash<def.price)));
- }
+ }else if(screen==='growth'){p(footer,notice||'可用 '+state.progression.points+' 福运点 · 新购票生效','idiom-message');footer.append(actionButton('返回卡册 · 选择下一张',()=>{screen='catalog';render();},false,'secondary'));}
  if(state.cash<2n&&(!state.active||state.active.settled))footer.append(actionButton('领取20元恢复金（每60秒一次）',()=>update(s=>recoveryCash(s,Date.now())),false,'secondary'));
  const scroller=controls.querySelector('.idiom-catalog');if(scroller)scroller.scrollTop=scrollTop;
  if(riskDialog){
@@ -196,8 +228,8 @@ function renderControls():void {
 function render():void {
  if(!scene)return;scene.destroyChildren();foil.beginFrame();
  panel(0,0,W,H,C.bg,0);panel(25,22,700,167,'#263246',27,'#526079');
- text(50,30,'好运工坊',37,C.paper,350,'left',true);text(430,40,qa?'QA试玩 · 独立测试':'成语卡基础版 V3.1',20,C.gold,267,'right');
- text(50,89,'现金  '+money(state.cash),33,C.gold,640,'left',true);text(50,142,'已解锁 '+state.unlockedCount+'/18  ·  买票后结果固定',21,C.muted,640);
+ text(50,30,'好运工坊',37,C.paper,350,'left',true);text(430,40,qa?'QA试玩 · 独立测试':'永久成长版 V3.1',20,C.gold,267,'right');
+ text(50,89,'现金  '+money(state.cash),33,C.gold,640,'left',true);text(50,142,'已解锁 '+state.unlockedCount+'/18  ·  福运点 '+state.progression.points+'  ·  买票结果固定',21,C.muted,640);
  if(screen==='ticket')ticketView();renderControls();foil.endFrame();if(screen!=='ticket'||riskDialog)foil.setEnabled(false);
  root.dataset.screen=screen;root.dataset.cash=state.cash.toString();root.dataset.qa=String(qa);
 }
