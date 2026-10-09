@@ -1,0 +1,36 @@
+name: V3.1 Rules and Browser QA
+on:
+  push:
+    branches: [main, v31-basic-cards]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-package-lock
+      - run: npm test
+      - run: node tests/idiom-balance.mjs > idiom-balance.json
+      - name: Download official LayaAir 3.4 runtime
+        run: |
+          curl -fL --retry 3 https://github.com/layabox/LayaAir/releases/download/v3.4.0/LayaAir_3.4.0_libs.zip -o /tmp/laya-libs.zip
+          unzip -q /tmp/laya-libs.zip -d /tmp/laya-libs
+          mkdir -p libs
+          for engine_file in laya.core.js laya.webgl_2D.js; do
+            engine_path="$(find /tmp/laya-libs -name "$engine_file" -print -quit)"
+            test -n "$engine_path"
+            cp "$engine_path" "libs/$engine_file"
+          done
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: idiom-v31-qa
+          path: |
+            qa-evidence/
+            idiom-balance.json
+

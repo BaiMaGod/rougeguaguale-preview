@@ -1,0 +1,93 @@
+import {chromium} from 'playwright';
+import assert from 'node:assert/strict';
+import {createServer} from 'node:http';
+import {readFile,mkdir} from 'node:fs/promises';
+import {resolve,extname} from 'node:path';
+import {CARDS} from '../build/idiom/config.js';
+import {createIdiomTicket} from '../build/idiom/generator.js';
+import {resolveTicket,revealCell,cashOut} from '../build/idiom/resolver.js';
+import {newGame,serializeGame,SAVE_KEY} from '../build/idiom/wallet.js';
+const base=resolve('.'),evidence=resolve('qa-evidence');await mkdir(evidence,{recursive:true});
+const mime={'.html':'text/html','.css':'text/css','.js':'text/javascript','.json':'application/json'};
+const server=createServer(async(req,res)=>{
+ try{const path=resolve(base,'.'+decodeURIComponent(new URL(req.url,'http://localhost').pathname));
+  if(!path.startsWith(base+'/')&&path!==base)throw new Error('Invalid path');
+  const target=path===base?resolve(base,'index.html'):path,bytes=await readFile(target);
+  res.setHeader('Content-Type',mime[extname(target)]??'application/octet-stream');res.end(bytes);
+ }catch{res.statusCode=404;res.end('Not found');}
+});
+await new Promise(ok=>server.listen(0,'127.0.0.1',ok));
+const url='http://127.0.0.1:'+server.address().port;
+const browser=await chromium.launch({headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader']});
+const errors=[],checks=[];
+const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,hasTouch:true,isMobile:true});
+const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
+async function ready(){await page.waitForFunction(()=>!!document.querySelector('#game-root').dataset.screen);assert.equal(await page.locator('#load-error').isVisible(),false);}
+async function shot(name){await page.screenshot({path:resolve(evidence,name+'.jpg'),type:'jpeg',quality:85});}
+async function install(state){await page.evaluate(({key,raw})=>localStorage.setItem(key,raw),{key:SAVE_KEY,raw:serializeGame(state)});await page.reload();await ready();}
+function finish(ticket){
+ let t=ticket;const mode=CARDS.find(d=>d.id===t.cardId).mode;
+ const indices=mode==='ladder'?[0,5,10]:mode==='mines'?[0,1,2]:mode==='eye'||mode==='destiny'?[0]:Array.from({length:t.committedLayout.length},(_,i)=>i);
+ for(const i of indices){if(resolveTicket(t).status!=='playing')break;t=revealCell(t,i);
+  if(mode==='cashout'&&t.revealed.length===3&&resolveTicket(t).status==='playing'){t=cashOut(t);break;}}
+ return resolveTicket(t);
+}
+function fixture(id,status){for(let i=0;i<100000;i++){const t=createIdiomTicket(id,'browser-'+id+'-'+i,'browser-'+i);if(finish(t).status===status)return t;}throw new Error('No fixture');}
+function stateFor(t){return {...newGame('browser'),cash:2000000000000n-CARDS.find(c=>c.id===t.cardId).price,peak:2000000000000n,unlockedCount:18,bought:1,active:t};}
+const cdp=await context.newCDPSession(page);
+async function touch(type,x,y){await cdp.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{x,y,radiusX:2,radiusY:2,force:1}]});}
+async function scratch(index,partial=false){
+ const cv=page.locator(`canvas[data-index="${index}"]`);const b=await cv.boundingBox();assert.ok(b,'Missing foil '+index);
+ const startX=b.x+b.width*.5,startY=b.y+b.height*.3;
+ await touch('touchStart',startX,startY);
+ if(!partial){
+  const step=b.width/Math.max(8,Math.ceil(b.width/7));
+  for(let row=0,y=b.y+b.height*.14;y<b.y+b.height*.9;y+=step,row++){
+   await touch('touchMove',b.x+b.width*(row%2?.9:.1),y);await touch('touchMove',b.x+b.width*(row%2?.1:.9),y);
+  }
+ }
+ await touch('touchEnd',startX,startY);
+ if(!partial)await page.waitForFunction(i=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).active.revealed.includes(i),index,{timeout:5000});
+}
+try{
+ await page.goto(url);await ready();assert.equal(await page.locator('.idiom-card').count(),18);
+ await shot('mobile-catalog');await page.getByRole('button',{name:'买 一五一十 · 2元',exact:true}).click();
+ assert.equal(await page.locator('#game-root').getAttribute('data-cash'),'58');assert.equal(await page.locator('canvas[data-index]').count(),1);
+ await shot('mobile-first-ticket');await scratch(0);
+ assert.equal(await page.locator('#foil-particles').getAttribute('data-emissions')==='0',false);checks.push('Real touch scratching, silver dust and purchase deduction');
+ const choices=fixture('T13','won');await install(stateFor(choices));await scratch(0,true);
+ const selected=await page.evaluate(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).active);
+ assert.deepEqual(selected.choices,[0]);assert.equal(selected.revealed.length,0);
+ assert.equal(await page.locator('canvas[data-index="1"]').evaluate(e=>getComputedStyle(e).pointerEvents),'none');
+ await page.reload();await ready();const restored=await page.evaluate(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).active);
+ assert.deepEqual(restored.committedLayout,selected.committedLayout);assert.deepEqual(restored.choices,[0]);checks.push('Partial scratch locks choice and survives refresh');
+ for(const def of CARDS){
+  const t=fixture(def.id,'won');await install(stateFor(t));await shot('mobile-'+def.id);
+  const indices=def.mode==='ladder'?[0,5,10]:def.mode==='mines'?[0,1,2]:def.mode==='eye'||def.mode==='destiny'?[0]:Array.from({length:def.cells},(_,i)=>i);
+  for(const i of indices){if(await page.locator('#game-root').getAttribute('data-status')!=='playing')break;await scratch(i);
+   if(def.mode==='cashout'&&i===2){await page.getByRole('button',{name:/现在收手/}).click();break;}}
+  assert.equal(await page.locator('#game-root').getAttribute('data-status'),'won',def.id+' did not win');
+  if(await page.locator('#game-root').getAttribute('data-settled')!=='true')await page.getByRole('button',{name:/^领取 /}).click();
+  const expected=stateFor(t).cash+finish(t).prize;assert.equal(await page.locator('#game-root').getAttribute('data-cash'),expected.toString(),def.id+' payout');
+  await page.reload();await ready();assert.equal(await page.locator('#game-root').getAttribute('data-cash'),expected.toString());
+  await shot('result-'+def.id);checks.push(def.id+' mobile purchase/reveal/collect/restore');
+ }
+ const all={...newGame('risk'),cash:2000000000000n,peak:2000000000000n,unlockedCount:18};await install(all);
+ await page.locator('.idiom-card[data-card-id="T18"]').click();await page.getByRole('button',{name:/买 一念天堂/}).click();
+ assert.equal(await page.locator('#game-root').getAttribute('data-cash'),all.cash.toString());await shot('mobile-risk-confirmation');
+ await page.getByRole('button',{name:'确认花100亿购买',exact:true}).click();assert.equal(await page.locator('#game-root').getAttribute('data-cash'),(all.cash-10000000000n).toString());checks.push('T18 explicit risk confirmation before purchase');
+ const devil=fixture('T18','bankrupt');await install(stateFor(devil));await scratch(0);
+ assert.equal(await page.locator('#game-root').getAttribute('data-cash'),'0');assert.equal(await page.locator('#game-root').getAttribute('data-status'),'bankrupt');
+ await shot('mobile-bankrupt');await page.getByRole('button',{name:/领取20元恢复金/}).click();assert.equal(await page.locator('#game-root').getAttribute('data-cash'),'20');checks.push('T18 bankruptcy then recovery');
+ await install(newGame('viewport'));
+ for(const view of [{width:360,height:640},{width:844,height:390},{width:1280,height:900}]){
+  await page.setViewportSize(view);await page.waitForTimeout(100);const b=await page.locator('#game-root').boundingBox();
+  assert.ok(b.x>=-1&&b.y>=-1&&b.x+b.width<=view.width+1&&b.y+b.height<=view.height+1);
+  await shot('catalog-'+view.width+'x'+view.height);checks.push('Viewport '+view.width+'x'+view.height);
+ }
+ await page.goto(url+'/legacy.html');await page.waitForTimeout(700);assert.equal(await page.locator('#load-error').isVisible(),false);await shot('legacy-preserved');checks.push('Historical mode boots');
+ assert.deepEqual(errors,[]);
+ console.log(JSON.stringify({checks:checks.length,results:checks,pageErrors:errors},null,2));
+ // Small review screenshots also appear in the job log for restricted artifact clients.
+ for(const name of ['mobile-catalog','mobile-T09','mobile-T17','mobile-bankrupt'])console.log('QA_IMAGE '+name+' '+(await readFile(resolve(evidence,name+'.jpg'))).toString('base64'));
+}finally{await browser.close();await new Promise(ok=>server.close(ok));}

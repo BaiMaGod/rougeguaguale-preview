@@ -4,6 +4,7 @@
  */
 export interface ScratchCellOptions {
   index: number; x: number; y: number; size: number; onFinished: (index: number) => void;
+  canStart?: () => boolean; onStarted?: (index:number) => void; shape?: 'heart';
 }
 interface Point { x:number; y:number; }
 interface Dust {
@@ -97,7 +98,7 @@ export class ScratchLayer {
   private seen=new Set<number>();
   private completed=new Set<number>();
   private epoch=0;
-  private foilTexture:HTMLCanvasElement|null=null;
+  private foilTextures=new Map<number,HTMLCanvasElement>();
   private dust:Dust[]=[];
   private fx:HTMLCanvasElement;
   private fxContext:CanvasRenderingContext2D;
@@ -132,19 +133,20 @@ export class ScratchLayer {
     if(this.raf){cancelAnimationFrame(this.raf);this.raf=0;}
     this.emissions=0;this.fx.dataset.emissions='0';
   }
-  add({index,x,y,size,onFinished}:ScratchCellOptions):void{
+  add({index,x,y,size,onFinished,canStart,onStarted,shape}:ScratchCellOptions):void{
     this.seen.add(index);
     if(this.cells.has(index))return;
-    if(!this.foilTexture)this.foilTexture=coating(size);
+    if(!this.foilTextures.has(size))this.foilTextures.set(size,coating(size));
     const canvas=document.createElement('canvas');
     canvas.width=Math.round(size*FOIL_RATIO);canvas.height=Math.round(size*FOIL_RATIO);
     canvas.dataset.index=String(index);
     canvas.dataset.material='silver-grain-v2';
     canvas.dataset.coverage='0';
     canvas.style.cssText='position:absolute;left:'+x+'px;top:'+y+'px;width:'+size+'px;height:'+size+'px;touch-action:none;border-radius:15px;cursor:crosshair;overflow:hidden;';
+    if(shape==='heart')canvas.style.clipPath='polygon(50% 94%,8% 53%,2% 32%,9% 15%,25% 7%,40% 12%,50% 24%,60% 12%,75% 7%,91% 15%,98% 32%,92% 53%)';
     const ctx=canvas.getContext('2d',{willReadFrequently:true});
     if(!ctx)throw new Error('Cannot create foil canvas');
-    ctx.drawImage(this.foilTexture,0,0,canvas.width,canvas.height);
+    ctx.drawImage(this.foilTextures.get(size)!,0,0,canvas.width,canvas.height);
     ctx.scale(FOIL_RATIO,FOIL_RATIO);
     // Subtle embossed print replaces flat opaque gradient and giant fake text.
     ctx.textAlign='center';ctx.textBaseline='middle';
@@ -221,7 +223,8 @@ export class ScratchLayer {
       },175);
     };
     canvas.addEventListener('pointerdown',e=>{
-      if(this.completed.has(index))return;
+      if(this.completed.has(index)||canStart&&!canStart())return;
+      onStarted?.(index);
       e.preventDefault();down=true;prior=where(e);canvas.setPointerCapture(e.pointerId);
       this.audio.start();
       // Initial pressure mark should be visible, but clicking alone reveals little.
@@ -235,7 +238,7 @@ export class ScratchLayer {
       erase(prior,p);prior=p;
     });
     canvas.addEventListener('pointerup',finish);
-    canvas.addEventListener('pointercancel',finish);
+    canvas.addEventListener('pointercancel',()=>{down=false;prior=null;this.audio.stop();});
     canvas.addEventListener('lostpointercapture',finish);
     this.holder.appendChild(canvas);
     this.cells.set(index,canvas);
@@ -247,6 +250,9 @@ export class ScratchLayer {
   setEnabled(enabled:boolean):void{
     for(const [index,el] of this.cells)
       el.style.pointerEvents=enabled&&!this.completed.has(index)?'auto':'none';
+  }
+  setCellEnabled(index:number,enabled:boolean):void{
+    const el=this.cells.get(index);if(el)el.style.pointerEvents=enabled&&!this.completed.has(index)?'auto':'none';
   }
   private emit(x:number,y:number,dx:number,dy:number,count:number):void{
     const nx=-dy,ny=dx;
@@ -271,7 +277,7 @@ export class ScratchLayer {
   private tick():void{
     this.raf=0;
     const ctx=this.fxContext;
-    ctx.clearRect(0,BOARD_LEFT,DESIGN_W,BOARD_HEIGHT);
+    ctx.clearRect(0,0,DESIGN_W,DESIGN_H);
     this.dust=this.dust.filter(p=>{
       p.age++;if(p.age>=p.life)return false;
       p.x+=p.vx;p.y+=p.vy;p.vy+=.19;p.vx*=.975;
@@ -291,5 +297,4 @@ export class ScratchLayer {
     if(this.dust.length)this.raf=requestAnimationFrame(()=>this.tick());
   }
 }
-const BOARD_LEFT=360;
-const BOARD_HEIGHT=700;
+

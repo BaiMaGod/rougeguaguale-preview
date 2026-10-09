@@ -39,3 +39,24 @@
 .work-cell.selected{background:#eab974;color:#2a3241;border:3px solid #fff1c8;font-weight:900}
 .work-cell:disabled{opacity:.32}
 .work-error{color:#ffb0aa!important;font-weight:700}
+
+#idiom-controls{position:absolute;inset:0;z-index:30;pointer-events:none;color:#f6e9ca}
+#idiom-controls button,#idiom-controls a,#idiom-controls .idiom-catalog,#idiom-controls .idiom-modal{pointer-events:auto}
+.idiom-top{position:absolute;left:32px;right:32px;top:198px;display:flex;gap:12px}
+.idiom-top .idiom-btn{flex:1;font-size:23px;min-height:82px;margin:0}
+#game-root[data-screen="ticket"] .idiom-top{top:1126px}
+.idiom-btn{width:100%;border:1px solid #e5c38f;background:linear-gradient(#ffe3a4,#ddad64);color:#2e3849;border-radius:16px;min-height:78px;padding:13px 18px;font-size:27px;font-weight:800;cursor:pointer;touch-action:manipulation;margin:8px 0;box-shadow:0 5px 0 #795e3c}
+.idiom-btn.secondary{background:#2d3b50;border-color:#586b86;color:#d9e2ed;box-shadow:none}
+.idiom-btn.active{background:#e6bd79;color:#263247}.idiom-btn:disabled{opacity:.45;box-shadow:none;cursor:default}.idiom-btn:active:not(:disabled){transform:translateY(2px)}
+.idiom-catalog{position:absolute;left:32px;right:32px;top:294px;bottom:220px;overflow-y:auto;padding:0 3px 24px;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#6b798c transparent}
+.idiom-intro{padding:16px 6px 24px}.idiom-catalog p{font-size:22px;line-height:1.45;margin:8px 0;color:#b7c4d7}.idiom-catalog .idiom-title,.idiom-title{font-size:35px;color:#f6e9ca;font-weight:800;margin:8px 0 16px}
+.idiom-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px}
+.idiom-card{position:relative;background:linear-gradient(135deg,#344052,#233047);text-align:left;color:#f6e9ca;padding:21px 22px 17px;border:2px solid #5e6c7e;border-radius:22px;min-height:304px;cursor:pointer;overflow:hidden;touch-action:manipulation}
+.idiom-card:before{content:'';position:absolute;inset:0 0 auto;height:7px;background:var(--accent)}.idiom-card.selected{border-color:#e8c584;background:linear-gradient(135deg,#48516a,#27364b)}
+.idiom-card.locked{filter:saturate(.4);opacity:.7}.idiom-card .idiom-tier{font-size:17px;color:var(--accent)}.idiom-card .idiom-card-name{font-size:33px;font-weight:800;color:#f6e9ca;letter-spacing:1px;margin:9px 0}
+.idiom-card .idiom-price{font-size:23px;color:#f5d49c}.idiom-card .idiom-rule{font-size:20px;min-height:60px;color:#d6deea}.idiom-card .idiom-prize{font-size:23px;color:var(--accent);font-weight:700}.idiom-card .idiom-lock,.idiom-lock{font-size:17px;line-height:1.5;color:#a5b4c7}
+.idiom-footer{position:absolute;left:32px;right:32px;bottom:16px;min-height:158px;padding:12px 8px 0;background:#141c2c}
+.idiom-footer p{margin:3px 0 10px;text-align:center;line-height:1.4}.idiom-message{font-size:23px;color:#f4d6a5}.idiom-tip{font-size:19px;color:#b8c6d8;padding:13px 25px}
+#game-root[data-screen="ticket"] .idiom-footer{bottom:11px;min-height:102px}.idiom-receipt{padding:16px 20px;border:1px solid #5b6c80;border-radius:16px;margin:14px 0;background:#27364a}
+.idiom-modal{position:absolute;inset:0;background:#070e1dd9;display:flex;align-items:center;padding:48px}.idiom-dialog{width:100%;background:#2f3c50;border:2px solid #dfbf8b;border-radius:28px;padding:36px}.idiom-dialog p{font-size:25px;line-height:1.65}.idiom-dialog .idiom-title{font-size:35px;color:#f1c89a}.idiom-legacy{color:#efd39f;font-size:23px}
+
