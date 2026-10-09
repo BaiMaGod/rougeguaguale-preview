@@ -25,8 +25,9 @@ const hardTimeout=setTimeout(()=>{
 },480000);
 const errors=[],checks=[];
 const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,hasTouch:true,isMobile:true});
-const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
-async function ready(){await page.waitForFunction(()=>!!document.querySelector('#game-root').dataset.screen);assert.equal(await page.locator('#load-error').isVisible(),false);}
+const page=await context.newPage();page.setDefaultTimeout(15000);page.setDefaultNavigationTimeout(15000);
+page.on('pageerror',e=>{errors.push(e.message);console.error('PAGE_ERROR',e.message);});
+async function ready(){await page.waitForFunction(()=>!!document.querySelector('#game-root').dataset.screen,null,{timeout:15000});assert.equal(await page.locator('#load-error').isVisible(),false);}
 async function shot(name){await page.screenshot({path:resolve(evidence,name+'.jpg'),type:'jpeg',quality:85});}
 async function install(state){await page.evaluate(({key,raw})=>localStorage.setItem(key,raw),{key:SAVE_KEY,raw:serializeGame(state)});await page.reload();await ready();}
 function finish(ticket){
