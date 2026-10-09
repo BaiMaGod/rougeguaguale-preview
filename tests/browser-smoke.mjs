@@ -19,6 +19,10 @@ const server=createServer(async(req,res)=>{
 await new Promise(ok=>server.listen(0,'127.0.0.1',ok));
 const url='http://127.0.0.1:'+server.address().port;
 const browser=await chromium.launch({headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader']});
+const hardTimeout=setTimeout(()=>{
+ console.error('Browser QA exceeded 8 minutes');process.exitCode=1;
+ void browser.close();server.closeAllConnections();server.close();
+},480000);
 const errors=[],checks=[];
 const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,hasTouch:true,isMobile:true});
 const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
@@ -50,6 +54,7 @@ async function scratch(index,partial=false){
  if(!partial)await page.waitForFunction(i=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).active.revealed.includes(i),index,{timeout:5000});
 }
 try{
+ console.log('QA started');
  await page.goto(url);await ready();assert.equal(await page.locator('.idiom-card').count(),18);
  await shot('mobile-catalog');await page.getByRole('button',{name:'买 一五一十 · 2元',exact:true}).click();
  assert.equal(await page.locator('#game-root').getAttribute('data-cash'),'58');assert.equal(await page.locator('canvas[data-index]').count(),1);
@@ -62,6 +67,7 @@ try{
  await page.reload();await ready();const restored=await page.evaluate(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).active);
  assert.deepEqual(restored.committedLayout,selected.committedLayout);assert.deepEqual(restored.choices,[0]);checks.push('Partial scratch locks choice and survives refresh');
  for(const def of CARDS){
+  console.log('QA card '+def.id+' started');
   const t=fixture(def.id,'won');await install(stateFor(t));await shot('mobile-'+def.id);
   const indices=def.mode==='ladder'?[0,5,10]:def.mode==='mines'?[0,1,2]:def.mode==='eye'||def.mode==='destiny'?[0]:Array.from({length:def.cells},(_,i)=>i);
   for(const i of indices){if(await page.locator('#game-root').getAttribute('data-status')!=='playing')break;await scratch(i);
@@ -70,7 +76,7 @@ try{
   if(await page.locator('#game-root').getAttribute('data-settled')!=='true')await page.getByRole('button',{name:/^领取 /}).click();
   const expected=stateFor(t).cash+finish(t).prize;assert.equal(await page.locator('#game-root').getAttribute('data-cash'),expected.toString(),def.id+' payout');
   await page.reload();await ready();assert.equal(await page.locator('#game-root').getAttribute('data-cash'),expected.toString());
-  await shot('result-'+def.id);checks.push(def.id+' mobile purchase/reveal/collect/restore');
+  await shot('result-'+def.id);checks.push(def.id+' mobile purchase/reveal/collect/restore');console.log('QA card '+def.id+' passed');
  }
  const all={...newGame('risk'),cash:2000000000000n,peak:2000000000000n,unlockedCount:18};await install(all);
  await page.locator('.idiom-card[data-card-id="T18"]').click();await page.getByRole('button',{name:/买 一念天堂/}).click();
@@ -90,4 +96,4 @@ try{
  console.log(JSON.stringify({checks:checks.length,results:checks,pageErrors:errors},null,2));
  // Small review screenshots also appear in the job log for restricted artifact clients.
  for(const name of ['mobile-catalog','mobile-T09','mobile-T17','mobile-bankrupt'])console.log('QA_IMAGE '+name+' '+(await readFile(resolve(evidence,name+'.jpg'))).toString('base64'));
-}finally{await browser.close();await new Promise(ok=>server.close(ok));}
+}finally{clearTimeout(hardTimeout);await browser.close();server.closeAllConnections();await new Promise(ok=>server.close(ok));}
