@@ -1,4 +1,4 @@
-name: Build and Deploy V3.1 Permanent Growth
+name: Build and Deploy V3.1 Auto Machine
 on:
   push:
     branches: [main]
@@ -25,6 +25,7 @@ jobs:
       - run: npm install --no-package-lock
       - run: npm test
       - run: node tests/idiom-balance.mjs > idiom-balance.json
+      - run: node tests/machine-balance.mjs > machine-balance.json
       - name: Download official LayaAir 3.4 runtime
         run: |
           curl -fL --retry 3 https://github.com/layabox/LayaAir/releases/download/v3.4.0/LayaAir_3.4.0_libs.zip -o /tmp/laya-libs.zip
@@ -39,6 +40,7 @@ jobs:
       - run: npm run test:browser
         env:
           BROWSER_QUICK: '1'
+      - run: npm run test:machine-browser
       - name: Assemble verified static game
         run: |
           mkdir -p site
@@ -46,15 +48,18 @@ jobs:
           cp -R build libs site/
           touch site/.nojekyll
           test -s site/build/idiom/growth.js
+          test -s site/build/idiom/machine.js
+          test -s site/build/idiom/machine-state.js
           test -s site/build/legacy-main.js
           test -s site/libs/laya.core.js
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: idiom-growth-deployment-qa
+          name: idiom-machine-deployment-qa
           path: |
             qa-evidence/
             idiom-balance.json
+            machine-balance.json
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

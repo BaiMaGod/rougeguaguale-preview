@@ -1,7 +1,7 @@
-name: V3.1 Growth Rules and Browser QA
+name: V3.1 Machine Rules and Browser QA
 on:
   push:
-    branches: [main, v31-basic-cards, v31-permanent-growth]
+    branches: [main, v31-basic-cards, v31-permanent-growth, v31-auto-machine]
   pull_request:
 jobs:
   test:
@@ -15,6 +15,7 @@ jobs:
       - run: npm install --no-package-lock
       - run: npm test
       - run: node tests/idiom-balance.mjs > idiom-balance.json
+      - run: node tests/machine-balance.mjs > machine-balance.json
       - name: Download official LayaAir 3.4 runtime
         run: |
           curl -fL --retry 3 https://github.com/layabox/LayaAir/releases/download/v3.4.0/LayaAir_3.4.0_libs.zip -o /tmp/laya-libs.zip
@@ -29,11 +30,13 @@ jobs:
       - run: npm run test:browser
         env:
           BROWSER_QUICK: '1'
+      - run: npm run test:machine-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: idiom-v31-growth-qa
+          name: idiom-v31-machine-qa
           path: |
             qa-evidence/
             idiom-balance.json
+            machine-balance.json
 

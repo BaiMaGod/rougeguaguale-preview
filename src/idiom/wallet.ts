@@ -2,17 +2,18 @@ import {CARDS,cardDefinition,type CardId} from './config.js';
 import {createIdiomTicket,type TicketInstance} from './generator.js';
 import {cashOut,chooseCell,revealCell,resolveTicket,resolveBaseTicket} from './resolver.js';
 import {newProgression,awardMilestones,restoreProgression,upgradeProgression,type Progression,type Tech} from './growth.js';
+import {newMachine,restoreMachine,type MachineState} from './machine-state.js';
 export interface CardStats {played:number;won:number;best:bigint;bestBase?:bigint;}
 export interface Receipt {nonce:string;cardId:CardId;prize:bigint;status:string;}
 export interface GameState {
- version:32;runSeed:string;cash:bigint;peak:bigint;bought:number;progression:Progression;
+ version:33;runSeed:string;cash:bigint;peak:bigint;bought:number;progression:Progression;machine:MachineState;
  unlockedCount:number;active:TicketInstance|null;stats:Record<string,CardStats>;
  history:Receipt[];lastRecovery:number;recoveryCount:number;
 }
 export const SAVE_KEY='idiom-run-v31-base';
 export const LEGACY_KEY='foil-run-v4';
 export function newGame(seed:string):GameState {
- return {version:32,runSeed:seed,cash:60n,peak:60n,bought:0,unlockedCount:1,active:null,stats:{},history:[],lastRecovery:0,recoveryCount:0,
+ return {version:33,runSeed:seed,cash:60n,peak:60n,bought:0,unlockedCount:1,active:null,stats:{},history:[],lastRecovery:0,recoveryCount:0,machine:newMachine(),
   progression:awardMilestones(newProgression(),1,60n,{})};
 }
 export function upgradeTech(state:GameState,tech:Tech):GameState {
@@ -23,7 +24,8 @@ function unlock(state:GameState):GameState {
  while(count<CARDS.length&&(state.stats[CARDS[count-1].id]?.played??0)>=3&&state.peak>=CARDS[count].price*2n)count++;
  return {...state,unlockedCount:count};
 }
-export function purchaseTicket(state:GameState,id:CardId,confirmRisk=false):GameState {
+export function purchaseTicket(state:GameState,id:CardId,confirmRisk=false,actor:'manual'|'machine'='manual'):GameState {
+ if(actor==='manual'&&(state.machine.running||state.machine.job))throw new Error('先暂停并完成机器票，再手动买票');
  const def=cardDefinition(id);
  if(state.active&&!state.active.settled)throw new Error('请先完成并领取当前票');
  if(CARDS.indexOf(def)>=state.unlockedCount)throw new Error('这张卡尚未解锁');
@@ -35,10 +37,12 @@ export function purchaseTicket(state:GameState,id:CardId,confirmRisk=false):Game
  return {...state,bought,cash:state.cash-def.price,active};
 }
 export function startScratch(state:GameState,index:number):GameState {
+ if(state.machine.job)throw new Error('当前票正在由机器处理');
  if(!state.active)throw new Error('请先购买一张票');
  return {...state,active:chooseCell(state.active,index)};
 }
 export function scratchCell(state:GameState,index:number):GameState {
+ if(state.machine.job)throw new Error('当前票正在由机器处理');
  if(!state.active)throw new Error('请先购买一张票');
  return {...state,active:revealCell(state.active,index)};
 }
@@ -46,7 +50,8 @@ export function stopAndCollect(state:GameState):GameState {
  if(!state.active)throw new Error('没有可收手的票');
  return settleActive({...state,active:cashOut(state.active)});
 }
-export function settleActive(state:GameState):GameState {
+export function settleActive(state:GameState,actor:'manual'|'machine'='manual'):GameState {
+ if(state.machine.job&&actor==='manual')throw new Error('请在机器界面领取当前票');
  const t=state.active;if(!t||t.settled)return state;
  const resolution=resolveTicket(t);if(resolution.status==='playing')throw new Error('这张票还未完成');
  const previous=state.stats[t.cardId]??{played:0,won:0,best:0n};
@@ -57,7 +62,7 @@ export function settleActive(state:GameState):GameState {
  // One immutable snapshot contains both receipt and balance. Replays cannot pay twice.
  const next=unlock({...state,cash,peak:cash>state.peak?cash:state.peak,stats,active:{...t,settled:true},
   history:[{nonce:t.nonce,cardId:t.cardId,prize:resolution.prize,status:resolution.status},...state.history].slice(0,100)});
- return {...next,progression:awardMilestones(next.progression,next.unlockedCount,next.peak,
+ return {...next,...(resolution.status==='bankrupt'?{machine:{...state.machine,running:false,message:'恶魔降临，机器已暂停，永久成长保留'}}:{}),progression:awardMilestones(next.progression,next.unlockedCount,next.peak,
   Object.fromEntries(Object.entries(stats).map(([id,s])=>[id,{won:s.won,best:s.bestBase??s.best}])))};
 }
 export function recoveryCash(state:GameState,now:number):GameState {
@@ -76,7 +81,7 @@ function count(value:unknown):number {
 }
 export function restoreGame(raw:string):GameState {
  const saved=JSON.parse(raw);
- if(![31,32].includes(saved.version)||typeof saved.runSeed!=='string'||saved.runSeed.length>200)throw new Error('存档版本不兼容');
+ if(![31,32,33].includes(saved.version)||typeof saved.runSeed!=='string'||saved.runSeed.length>200)throw new Error('存档版本不兼容');
  const fresh=newGame(saved.runSeed),cash=amount(saved.cash),peak=amount(saved.peak);
  if(peak<cash)throw new Error('历史金额无效');
  const unlockedCount=count(saved.unlockedCount);if(unlockedCount<1||unlockedCount>18)throw new Error('解锁进度无效');
@@ -104,8 +109,9 @@ export function restoreGame(raw:string):GameState {
   if(t.cashout)active=cashOut(active);
   if(t.settled){if(resolveTicket(active).status==='playing'||!history.some(r=>r.nonce===t.nonce))throw new Error('结算记录无效');active={...active,settled:true};}
  }
- const progression=saved.version===32?restoreProgression(saved.progression):awardMilestones(newProgression(),unlockedCount,peak,stats);
- return {...fresh,cash,peak,bought:count(saved.bought),unlockedCount,stats,history,active,progression,
+ const progression=saved.version>=32?restoreProgression(saved.progression):awardMilestones(newProgression(),unlockedCount,peak,stats);
+ const machine=saved.version===33?restoreMachine(saved.machine,active,unlockedCount):newMachine();
+ return {...fresh,cash,peak,bought:count(saved.bought),unlockedCount,stats,history,active,progression,machine,
   lastRecovery:count(saved.lastRecovery),recoveryCount:count(saved.recoveryCount)};
 }
 /** Keep old data verbatim. A corrupt V3.1 save must never be overwritten silently. */
@@ -114,5 +120,6 @@ export function loadGame(storage:Pick<Storage,'getItem'|'setItem'>,seed:string):
  if(legacy&&!storage.getItem('idiom-legacy-v4-backup'))storage.setItem('idiom-legacy-v4-backup',legacy);
  const raw=storage.getItem(SAVE_KEY);
  if(raw&&JSON.parse(raw).version===31&&!storage.getItem('idiom-v31-base-backup'))storage.setItem('idiom-v31-base-backup',raw);
+ if(raw&&JSON.parse(raw).version===32&&!storage.getItem('idiom-v32-growth-backup'))storage.setItem('idiom-v32-growth-backup',raw);
  return {state:raw?restoreGame(raw):newGame(seed),legacy:!!legacy};
 }

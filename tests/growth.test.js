@@ -75,7 +75,7 @@ test('V3.1旧存档完整迁移并补领，保留原始备份和待刮票',()=>{
  const t=createIdiomTicket('T01','migration','legacy');const s={...newGame('legacy'),version:31,active:t,stats:{T01:{played:3,won:1,best:10n}},unlockedCount:2,peak:1000n};
  delete s.progression;const raw=serializeGame(s),map=new Map([[SAVE_KEY,raw]]),storage={getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,v)};
  const migrated=loadGame(storage,'unused').state;
- assert.equal(migrated.version,32);assert.equal(migrated.progression.points,14);assert.deepEqual(migrated.active,t);
+ assert.equal(migrated.version,33);assert.equal(migrated.progression.points,14);assert.deepEqual(migrated.active,t);
  assert.equal(map.get('idiom-v31-base-backup'),raw);assert.deepEqual(restoreGame(serializeGame(migrated)),migrated);
  assert.deepEqual(loadGame(storage,'unused').state.progression,migrated.progression);
 });
