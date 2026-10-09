@@ -27,6 +27,7 @@ function unlock(state:GameState):GameState {
 export function purchaseTicket(state:GameState,id:CardId,confirmRisk=false,actor:'manual'|'machine'='manual'):GameState {
  if(actor==='manual'&&(state.machine.running||state.machine.job))throw new Error('先暂停并完成机器票，再手动买票');
  const def=cardDefinition(id);
+ if(actor==='machine'&&!def.automationAllowedByDefault)throw new Error('一念天堂禁止自动处理');
  if(state.active&&!state.active.settled)throw new Error('请先完成并领取当前票');
  if(CARDS.indexOf(def)>=state.unlockedCount)throw new Error('这张卡尚未解锁');
  if(state.cash<def.price)throw new Error('现金不足，可以先刮低价卡');
@@ -53,6 +54,7 @@ export function stopAndCollect(state:GameState):GameState {
 export function settleActive(state:GameState,actor:'manual'|'machine'='manual'):GameState {
  if(state.machine.job&&actor==='manual')throw new Error('请在机器界面领取当前票');
  const t=state.active;if(!t||t.settled)return state;
+ if(actor==='machine'&&!cardDefinition(t.cardId).automationAllowedByDefault)throw new Error('一念天堂禁止自动处理');
  const resolution=resolveTicket(t);if(resolution.status==='playing')throw new Error('这张票还未完成');
  const previous=state.stats[t.cardId]??{played:0,won:0,best:0n};
  const basePrize=resolveBaseTicket(t).prize;

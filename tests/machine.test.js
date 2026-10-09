@@ -102,7 +102,9 @@ test('天梯随机或预设序列盲选，队列策略不随设置变化',()=>{
 });
 test('T18拒绝排队与自动补票；手动恶魔暂停机器并保留永久成长',()=>{
  const s=setup('risk',4);assert.throws(()=>enqueueMachine(s,'T18'));assert.throws(()=>configureMachine(s,{...s.machine,repeatCard:'T18'}));assert.throws(()=>machineOrder('T18','risk',defaultPolicy()));
+ assert.throws(()=>purchaseTicket(s,'T18',true,'machine'));
  let devil;for(let i=0;i<100;i++){devil=purchaseTicket({...s,runSeed:'devil'+i},'T18',true);devil={...devil,active:revealCell(devil.active,0)};if(resolveTicket(devil.active).status==='bankrupt')break;}
+ assert.throws(()=>settleActive(devil,'machine'));
  const paid=settleActive({...devil,machine:{...devil.machine,running:true}});assert.equal(paid.cash,0n);assert.equal(paid.machine.running,false);assert.deepEqual(paid.progression.levels,s.progression.levels);
 });
 test('旧成长档迁移、损坏机器记录被拒绝并保留原文本',()=>{
