@@ -60,7 +60,7 @@ function buy():void {
  riskDialog=false;if(state.active?.cardId===selected&&!state.active.settled){screen='ticket';render();}
 }
 function onReveal(index:number,nonce:string):void {
- if(state.active?.nonce!==nonce)return;
+ if(state.active?.nonce!==nonce||state.active.settled)return;
  update(s=>{
   const next=scratchCell(s,index),r=resolveTicket(next.active!);
   tone(r.status==='won'?'win':r.status==='lost'||r.status==='bankrupt'?'lose':'reveal');
@@ -170,7 +170,10 @@ function renderControls():void {
  const footer=box('idiom-footer');controls.appendChild(footer);
  if(screen==='ticket'&&state.active){
   const t=state.active,r=resolveTicket(t),def=cardDefinition(t.cardId);p(footer,notice||r.message,'idiom-message');
-  if(t.settled)footer.append(actionButton('再买一张 · '+money(def.price),()=>{selected=t.cardId;buy();},state.cash<def.price));
+  if(t.settled){
+   if(state.cash>=def.price)footer.append(actionButton('再买一张 · '+money(def.price),()=>{selected=t.cardId;buy();}));
+   else if(state.cash>=2n)footer.append(actionButton('换一张低价卡',()=>{selected='T01';screen='catalog';render();}));
+  }
   else if(r.status==='won')footer.append(actionButton('领取 '+money(r.prize),()=>update(settleActive)));
   else if(def.mode==='cashout')footer.append(actionButton('现在收手 · '+money(r.accrued),()=>update(stopAndCollect),r.accrued===0n));
   else p(footer,'手指来回擦掉银层，抬手揭晓；选择类卡一旦开始刮就锁定选择。','idiom-tip');

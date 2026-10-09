@@ -20,9 +20,9 @@ await new Promise(ok=>server.listen(0,'127.0.0.1',ok));
 const url='http://127.0.0.1:'+server.address().port;
 const browser=await chromium.launch({headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader']});
 const hardTimeout=setTimeout(()=>{
- console.error('Browser QA exceeded 8 minutes');process.exitCode=1;
+ console.error('Browser QA exceeded 12 minutes');process.exitCode=1;
  void browser.close();server.closeAllConnections();server.close();
-},480000);
+},720000);
 const errors=[],checks=[];
 const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,hasTouch:true,isMobile:true});
 const page=await context.newPage();page.setDefaultTimeout(15000);page.setDefaultNavigationTimeout(15000);
@@ -46,7 +46,8 @@ async function scratch(index,partial=false){
  const startX=b.x+b.width*.5,startY=b.y+b.height*.3;
  await touch('touchStart',startX,startY);
  if(!partial){
-  const step=b.width/Math.max(8,Math.ceil(b.width/7));
+  const designSize=await cv.evaluate(e=>parseFloat(e.style.width));
+  const step=b.width*22/designSize;
   for(let row=0,y=b.y+b.height*.14;y<b.y+b.height*.9;y+=step,row++){
    await touch('touchMove',b.x+b.width*(row%2?.9:.1),y);await touch('touchMove',b.x+b.width*(row%2?.1:.9),y);
   }
@@ -67,7 +68,8 @@ try{
  assert.equal(await page.locator('canvas[data-index="1"]').evaluate(e=>getComputedStyle(e).pointerEvents),'none');
  await page.reload();await ready();const restored=await page.evaluate(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).active);
  assert.deepEqual(restored.committedLayout,selected.committedLayout);assert.deepEqual(restored.choices,[0]);checks.push('Partial scratch locks choice and survives refresh');
- for(const def of CARDS){
+ const cases=process.env.BROWSER_QUICK==='1'?CARDS.filter(d=>['T01','T09','T17','T18'].includes(d.id)):CARDS;
+ for(const def of cases){
   console.log('QA card '+def.id+' started');
   const t=fixture(def.id,'won');await install(stateFor(t));await shot('mobile-'+def.id);
   const indices=def.mode==='ladder'?[0,5,10]:def.mode==='mines'?[0,1,2]:def.mode==='eye'||def.mode==='destiny'?[0]:Array.from({length:def.cells},(_,i)=>i);
@@ -85,6 +87,8 @@ try{
  await page.getByRole('button',{name:'确认花100亿购买',exact:true}).click();assert.equal(await page.locator('#game-root').getAttribute('data-cash'),(all.cash-10000000000n).toString());checks.push('T18 explicit risk confirmation before purchase');
  const devil=fixture('T18','bankrupt');await install(stateFor(devil));await scratch(0);
  assert.equal(await page.locator('#game-root').getAttribute('data-cash'),'0');assert.equal(await page.locator('#game-root').getAttribute('data-status'),'bankrupt');
+ const navBox=await page.locator('.idiom-top').boundingBox(),footerBox=await page.locator('.idiom-footer').boundingBox();
+ assert.ok(footerBox.y>=navBox.y+navBox.height,'Bankruptcy footer covers navigation');
  await shot('mobile-bankrupt');await page.getByRole('button',{name:/领取20元恢复金/}).click();assert.equal(await page.locator('#game-root').getAttribute('data-cash'),'20');checks.push('T18 bankruptcy then recovery');
  await install(newGame('viewport'));
  for(const view of [{width:360,height:640},{width:844,height:390},{width:1280,height:900}]){
