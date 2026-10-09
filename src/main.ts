@@ -18,6 +18,7 @@ let scene:any,screen:'catalog'|'ticket'|'records'|'growth'='catalog',riskDialog=
 let notice='',legacyFound=false;
 const controls=document.createElement('div');controls.id='idiom-controls';root.appendChild(controls);
 const money=(n:bigint)=>formatMoney(n)+'元';
+const multiplier=(bps:number)=>(bps/10000).toFixed(4).replace(/0+$/,'').replace(/\.$/,'');
 function sizeToWindow():void {
  const scale=Math.min(innerWidth/W,innerHeight/H);root.style.transform=`scale(${scale})`;
  root.style.left=Math.round((innerWidth-W*scale)/2)+'px';root.style.top=Math.round((innerHeight-H*scale)/2)+'px';
@@ -36,7 +37,8 @@ function save():void {
  catch{notice='当前浏览器无法保存进度，本次游戏仍可继续。';}
 }
 function update(action:(s:GameState)=>GameState,resetFoil=false):void {
- try{const next=action(state);if(resetFoil)foil.clear();state=next;notice='';save();render();}
+ try{const next=action(state),fortune=next.progression.earned-state.progression.earned;
+  if(resetFoil)foil.clear();state=next;notice=fortune>0?'首次里程碑达成 · 获得 '+fortune+' 福运点':'';save();render();}
  catch(e){notice=e instanceof Error?e.message:String(e);render();}
 }
 function actionButton(title:string,action:()=>void,disabled=false,className=''):HTMLButtonElement {
@@ -75,7 +77,7 @@ function growthSummary(id:CardId,levels=state.progression.levels):string {
  if(m.winChance>0)pool=(mode==='eye'?'有真眼 '+probability(m.winChance)+' · 盲选中奖 '+probability(m.winChance/3):'中奖 '+probability(m.winChance));
  if(m.tiers.length)pool+=' · 中奖后最高档 '+probability(m.tiers.at(-1)!);
  if(mode==='cashout')pool='每步安全 '+m.safety.map(probability).join(' / ');
- return pool+' · 奖金 ×'+(m.bonusBps/10000).toFixed(2);
+ return pool+' · 奖金 ×'+multiplier(m.bonusBps);
 }
 interface Slot {index:number;x:number;y:number;size:number;label:string;heart?:boolean;}
 function slots(id:CardId):Slot[] {
@@ -110,6 +112,7 @@ function cellLabel(c:TicketCell):string {
 }
 function ticketView():void {
  const t=state.active;if(!t)return;const def=cardDefinition(t.cardId),r=resolveTicket(t);
+ const shownAccrued=def.mode==='sum'||def.mode==='ledger'?t.revealed.reduce((sum,i)=>sum+BigInt(t.committedLayout[i].value),0n):r.status==='won'?r.prize:r.accrued;
  panel(42,225,666,908,'#080d1744',32);panel(34,210,682,908,C.paper,32,'#cfb07d');
  panel(34,210,682,166,def.color,30);panel(34,295,682,82,def.color,0);
  text(65,225,def.id+'  /  成语刮刮卡',22,C.ink,580);
@@ -117,13 +120,13 @@ function ticketView():void {
  text(65,333,'票价 '+money(def.price)+'     基础最高 '+money(def.headlinePrize),22,C.ink,620);
  text(66,390,def.rule,25,C.ink,618,'center',true);
  const tool=scratchTool(t.growth?.scratch??0),model=growthModel(t.cardId,t.growth??zeroLevels());
- const hint=text(66,430,def.hint+'\n'+tool.name+' Lv.'+(t.growth?.scratch??0)+' · 本票奖金 ×'+(model.bonusBps/10000).toFixed(2),19,'#6c6d6c',618,'center');hint.wordWrap=true;hint.height=55;
+ const hint=text(66,430,def.hint+'\n'+tool.name+' Lv.'+(t.growth?.scratch??0)+' · 本票奖金 ×'+multiplier(model.bonusBps),19,'#6c6d6c',618,'center');hint.wordWrap=true;hint.height=55;
  if(def.mode==='multiply')text(336,691,'×',38,C.ink,78,'center',true);
  if(def.mode==='compare')text(336,691,'VS',29,C.ink,78,'center',true);
- if(def.mode==='sum')text(100,970,'目标 100  ·  当前 '+r.accrued.toString(),24,C.ink,550,'center',true);
- if(def.mode==='ledger')text(80,1023,'累计 '+money(r.accrued)+'  /  目标 300万',22,C.ink,590,'center',true);
+ if(def.mode==='sum')text(100,970,'目标 100  ·  当前 '+shownAccrued.toString(),24,C.ink,550,'center',true);
+ if(def.mode==='ledger')text(80,1023,'累计 '+money(shownAccrued)+'  /  目标 300万',22,C.ink,590,'center',true);
  if(def.mode==='mines')text(90,530,'3次安全即中奖  ·  4枚雷 / 10格',24,C.ink,570,'center',true);
- if(def.mode==='cashout')text(80,1023,'已累计 '+money(r.accrued)+'  ·  可随时收手',24,C.ink,590,'center',true);
+ if(def.mode==='cashout')text(80,1023,'已累计 '+money(shownAccrued)+'  ·  '+(t.settled?'本票已结算':'可随时收手'),24,C.ink,590,'center',true);
  if(def.mode==='ladder')text(88,480,'从最下层开始，每层只能选1门',22,C.ink,574,'center',true);
  for(const slot of slots(t.cardId)){
   const c=t.committedLayout[slot.index],open=t.revealed.includes(slot.index),allowed=canScratch(t,slot.index),dim=!open&&!allowed;

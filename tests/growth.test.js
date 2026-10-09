@@ -110,3 +110,9 @@ test('四档工具面积与宽度一致，最高级仍须真实刮擦',()=>{
  assert.deepEqual([0,3,6,9].map(l=>scratchTool(l).name),['铜币','银币','金币','神币']);
  for(let l=0;l<=10;l++){const t=scratchTool(l);assert.ok(Math.abs(t.width*t.width/900-t.area)<1e-10);assert.equal(t.area,1+.15*l);}
 });
+test('只升级工具或奖金时，同种子票面结果不变',()=>{
+ for(const def of CARDS)for(let i=0;i<100;i++){
+  const seed='no-reroll:'+def.id+':'+i,base=createIdiomTicket(def.id,seed,'n');
+  for(const tech of ['bonus','scratch'])assert.deepEqual(createIdiomTicket(def.id,seed,'n',{...zeroLevels(),[tech]:10}).committedLayout,base.committedLayout);
+ }
+});
