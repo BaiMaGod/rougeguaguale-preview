@@ -141,7 +141,7 @@ export class ScratchLayer {
     const canvas=document.createElement('canvas');
     canvas.width=Math.round(size*FOIL_RATIO);canvas.height=Math.round(size*FOIL_RATIO);
     canvas.dataset.index=String(index);
-    canvas.dataset.material='silver-grain-v2';
+    canvas.dataset.material='silver-grain-v3-luck';
     canvas.dataset.coverage='0';
     const brush=Math.max(BRUSH,Math.min(48,brushWidth));canvas.dataset.brushWidth=String(brush);
     canvas.style.cssText='position:absolute;left:'+x+'px;top:'+y+'px;width:'+size+'px;height:'+size+'px;touch-action:none;border-radius:15px;cursor:crosshair;overflow:hidden;';
@@ -150,12 +150,22 @@ export class ScratchLayer {
     if(!ctx)throw new Error('Cannot create foil canvas');
     ctx.drawImage(this.foilTextures.get(size)!,0,0,canvas.width,canvas.height);
     ctx.scale(FOIL_RATIO,FOIL_RATIO);
-    // Subtle embossed print replaces flat opaque gradient and giant fake text.
+    // Foil: Chinese engraved ink stamp, delicate edge tooling and subtle specular embossing.
     ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.font='bold 13px sans-serif';ctx.fillStyle='rgba(58,75,99,.53)';
-    ctx.fillText('✦  SCRATCH  ✦',size/2,size/2+1);
-    ctx.fillStyle='rgba(255,255,255,.44)';
-    ctx.fillText('✦  SCRATCH  ✦',size/2,size/2-1);
+    const label='刮开有喜';
+    ctx.font='bold '+(size<=110?15:size<=175?19:25)+'px "Microsoft YaHei",serif';
+    ctx.fillStyle='rgba(45,60,83,.44)';ctx.fillText(label,size/2,size/2+1.4);
+    ctx.fillStyle='rgba(252,252,252,.59)';ctx.fillText(label,size/2,size/2-.8);
+    ctx.strokeStyle='rgba(248,250,255,.24)';ctx.lineWidth=1.2;
+    ctx.strokeRect(6,6,size-12,size-12);
+    ctx.strokeStyle='rgba(52,73,99,.24)';ctx.strokeRect(8,8,size-16,size-16);
+    for(const px of [15,size-15]){
+      for(const py of [15,size-15]){
+        ctx.save();ctx.translate(px,py);ctx.rotate(Math.PI/4);
+        ctx.fillStyle='rgba(248,251,254,.48)';ctx.fillRect(-3,-3,6,6);
+        ctx.restore();
+      }
+    }
     let down=false,prior:Point|null=null,lastSample=0;
     const epoch=this.epoch;
     const where=(event:PointerEvent):Point=>{
