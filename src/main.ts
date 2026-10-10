@@ -18,26 +18,35 @@ const loadError=document.getElementById('load-error')!;
 const foil=new ScratchLayer(foilRoot);
 const qa=new URLSearchParams(location.search).get('qa')==='1';
 let state:GameState=newGame(crypto.randomUUID()),selected:CardId='T01';
-let scene:any,screen:'catalog'|'ticket'|'records'|'growth'|'machine'|'rebirth'|'build'='catalog',riskDialog=false;
+let scene:HTMLElement|null=null,screen:'catalog'|'ticket'|'records'|'growth'|'machine'|'rebirth'|'build'='catalog',riskDialog=false;
 let rebirthQuote:ReturnType<typeof rebirthPreview>|null=null;
 let notice='',legacyFound=false;
 // One-shot cosmetic state only: never participates in prize resolution or saved game state.
 let revealEffect:{nonce:string;index:number;kind:'reveal'|'win'|'miss'}|null=null;
 let writer=qa,lastSaved='',releaseWriter:(()=>void)|undefined,lastTick=0;
 const controls=document.createElement('div');controls.id='idiom-controls';root.appendChild(controls);
+// One persistent transform contains both printed ticket and Canvas2D foil.
+// Ordinary UI refreshes never detach a captured scratching pointer.
+const worktable=document.createElement('div');worktable.className='idiom-worktable';root.appendChild(worktable);
+const ticketStage=document.createElement('div');ticketStage.className='idiom-ticket-stage';worktable.appendChild(ticketStage);
+scene=document.createElement('div');scene.className='ticket-print-layer';ticketStage.appendChild(scene);ticketStage.appendChild(foilRoot);
 const money=(n:bigint)=>formatMoney(n)+'元';
 const multiplier=(bps:number)=>(bps/10000).toFixed(4).replace(/0+$/,'').replace(/\.$/,'');
 function sizeToWindow():void {
- const scale=Math.min(innerWidth/W,innerHeight/H);root.style.transform=`scale(${scale})`;
- root.style.left=Math.round((innerWidth-W*scale)/2)+'px';root.style.top=Math.round((innerHeight-H*scale)/2)+'px';
+ const area=controls.querySelector<HTMLElement>('.idiom-worktable'),stage=controls.querySelector<HTMLElement>('.idiom-ticket-stage');
+ if(!area||!stage)return;
+ const bounds=area.getBoundingClientRect(),scale=Math.min((bounds.width-16)/W,(bounds.height-12)/940);
+ stage.style.transform=`translate(-50%,-50%) scale(${Math.max(.1,scale)})`;
 }
 function text(x:number,y:number,value:string,size=26,color=C.paper,width=600,align='left',bold=false):any {
- const t=new Laya.Text();t.text=value;t.font='Microsoft YaHei';t.fontSize=size;t.color=color;
- t.width=width;t.height=size+20;t.align=align;t.valign='middle';t.bold=bold;t.pos(x,y);scene.addChild(t);return t;
+ const t=document.createElement('div');t.className='ticket-print';t.textContent=value;
+ t.style.cssText=`left:${x}px;top:${y}px;width:${width}px;min-height:${size+20}px;font-size:${size}px;color:${color};text-align:${align};font-weight:${bold?800:400};`;
+ scene!.appendChild(t);return t;
 }
 function panel(x:number,y:number,w:number,h:number,color:string,r=24,line?:string):any {
- const s=new Laya.Sprite();s.graphics.drawRoundRect(0,0,w,h,r,r,r,r,color,line??color,line?2:0);
- s.pos(x,y);scene.addChild(s);return s;
+ const s=document.createElement('div');s.className='ticket-panel';
+ s.style.cssText=`left:${x}px;top:${y}px;width:${w}px;height:${h}px;background:${color};border-radius:${r}px;${line?'border:2px solid '+line+';':''}`;
+ scene!.appendChild(s);return s;
 }
 function save():void {
  if(qa||!writer)return;
@@ -127,17 +136,22 @@ function ticketView():void {
  const t=state.active;if(!t)return;const def=cardDefinition(t.cardId),r=resolveTicket(t);
  const shownAccrued=def.mode==='sum'||def.mode==='ledger'?t.revealed.reduce((sum,i)=>sum+BigInt(t.committedLayout[i].value),0n):r.status==='won'?r.prize:r.accrued;
  const warm=['T02','T07','T15','T16','T18'].includes(def.id),emerald=['T03','T05','T09','T10','T13'].includes(def.id);
- const shell=warm?'#671b3a':emerald?'#11534e':'#16365f',heading=warm?'#b72e58':emerald?'#196a59':'#226598';
- panel(42,225,666,908,'#080d1744',32);
- panel(34,210,682,908,shell,32,'#d3a75d');
- panel(46,380,658,661,'#f3e3c4',22,'#c6a064');
- panel(34,210,682,166,heading,30);panel(34,310,682,67,heading,0);
- text(65,225,def.id+'  /  成语刮刮卡',22,'#fff0c6',580);
- text(65,267,def.name,51,'#fff3ac',580,'left',true);
- text(65,333,'票价 '+money(def.price)+'     基础最高 '+money(def.headlinePrize),22,'#fff0c6',620);
+ const heading=warm?'#a84b45':emerald?'#346959':'#a64a3c';
+ const paper=panel(34,210,682,908,'#f5e8ce',2,heading);paper.classList.add('ticket-paper');
+ const frame=panel(54,232,642,864,'transparent',0,heading);frame.classList.add('ticket-inner-frame');
+ panel(66,278,618,103,heading,0);
+ text(78,231,'入门成语票  /  '+def.id,22,heading,550);
+ text(83,287,def.name,54,'#fff1d5',580,'center',true);
+ text(76,345,'票价 '+money(def.price)+'     基础最高 '+money(def.headlinePrize),20,'#fff1d5',600,'center');
  text(66,390,def.rule,25,C.ink,618,'center',true);
  const tool=scratchTool(t.growth?.scratch??0),model=growthModel(t.cardId,t.growth??zeroLevels());
- const hint=text(66,430,(t.boost?'本票强化：'+boostInfo(t.boost).name:def.hint)+'\n'+tool.name+' Lv.'+(t.growth?.scratch??0)+' · 本票奖金 ×'+multiplier(model.bonusBps)+(t.boost==='rise'?'（翻倍后封顶3000元）':''),19,'#6c6d6c',618,'center');hint.wordWrap=true;hint.height=55;
+ const hint=text(66,430,(t.boost?'本票强化：'+boostInfo(t.boost).name:def.hint)+'\n'+tool.name+' Lv.'+(t.growth?.scratch??0)+' · 本票奖金 ×'+multiplier(model.bonusBps)+(t.boost==='rise'?'（翻倍后封顶3000元）':''),19,'#7c715f',618,'center');hint.style.height='55px';
+ const motif=box('ticket-motif');motif.style.backgroundImage=`url('./assets/ticket-${def.id.toLowerCase()}.svg')`;scene!.appendChild(motif);
+ if(['amount','heart','pair','multiply','compare','dice','hearts','eye','double','destiny'].includes(def.mode)){
+  const vignette=box('ticket-vignette');vignette.setAttribute('aria-hidden','true');scene!.appendChild(vignette);
+ }
+ const barcode=box('ticket-barcode');barcode.setAttribute('aria-hidden','true');scene!.appendChild(barcode);
+ text(84,1064,'好运工坊 · 虚拟现金票券',18,heading,420);
  if(def.mode==='multiply')text(336,691,'×',38,C.ink,78,'center',true);
  if(def.mode==='compare')text(336,691,'VS',29,C.ink,78,'center',true);
  if(def.mode==='sum')text(100,970,'目标 100  ·  当前 '+shownAccrued.toString(),24,C.ink,550,'center',true);
@@ -180,7 +194,7 @@ function renderCatalog():void {
   p(b,def.id+' · '+(i<6?'入门':i<12?'发展':i<16?'冲刺':'终极'),'idiom-tier');p(b,def.name,'idiom-card-name');p(b,'票价 '+money(def.price),'idiom-price');
   p(b,def.rule,'idiom-rule');p(b,'基础最高 '+money(def.headlinePrize),'idiom-prize');
   p(b,unlocked?`本局完成 ${state.runStats[def.id]?.played??0} 张 · 历史中奖 ${state.stats[def.id]?.won??0} 次`:'解锁：前一卡完成3张 + 本局最高现金'+money(def.price*2n),'idiom-lock');
-  b.addEventListener('click',()=>{selected=def.id;notice=unlocked?'':'这张卡尚未解锁，先完成前一卡与财富目标';render();});grid.appendChild(b);
+  b.addEventListener('click',()=>{selected=def.id;screen='catalog';notice=unlocked?'':'这张卡尚未解锁，先完成前一卡与财富目标';render();});grid.appendChild(b);
  });
 }
 function renderRecords():void {
@@ -301,13 +315,37 @@ function updateMachineProgress():void {
  if(label)label.textContent=j?cardDefinition(j.cardId).name+' · 已揭晓 '+(state.active?.revealed.length??0)+'/'+j.order.length+' · '+Math.floor(j.elapsedMs/bar!.max*100)+'%':m.running?'准备购买下一张':'没有正在处理的票';
  root.dataset.machineRunning=String(m.running);root.dataset.machineProcessed=String(m.processed);
 }
+function renderPreview():void {
+ const def=cardDefinition(selected),heading=['T03','T05','T09','T10','T13'].includes(selected)?'#346959':'#a64a3c';
+ const paper=panel(34,210,682,908,'#f5e8ce',2,heading);paper.classList.add('ticket-paper');
+ panel(54,232,642,864,'transparent',0,heading).classList.add('ticket-inner-frame');
+ text(78,231,'好运工坊  /  '+def.id,22,heading,550);
+ panel(66,278,618,103,heading,0);text(83,287,def.name,54,'#fff1d5',580,'center',true);
+ text(76,345,'票价 '+money(def.price)+'     基础最高 '+money(def.headlinePrize),20,'#fff1d5',600,'center');
+ text(66,402,def.rule,26,'#514436',618,'center',true);text(86,451,def.hint,21,'#7c715f',580,'center');
+ const cover=panel(208,534,334,334,'#b6b6ae',16,'#96968f');cover.classList.add('preview-foil');
+ text(209,657,'买票后，来回刮开',27,'#5c615e',330,'center',true);
+ const vignette=box('ticket-vignette');scene!.appendChild(vignette);
+ const motif=box('ticket-motif');motif.style.backgroundImage=`url('./assets/ticket-${def.id.toLowerCase()}.svg')`;scene!.appendChild(motif);
+ const barcode=box('ticket-barcode');scene!.appendChild(barcode);text(84,1064,'一张成语 · 一句规则',18,heading,400);
+}
+function renderQuickGrowth():void {
+ const side=box('idiom-quick-growth');controls.appendChild(side);
+ p(side,'永久成长','quick-title');p(side,'让每一次好运，都留下成长','quick-subtitle');
+ const labels:Record<string,string>={luck:'幸运',jackpot:'爆率',bonus:'奖金',scratch:'刮奖速度'};
+ TECHS.forEach(tech=>{const b=actionButton(labels[tech]??TECH_INFO[tech].name,()=>{screen='growth';render();},false,'quick-tech');b.dataset.techIcon=tech;
+  const level=document.createElement('span');level.textContent='Lv. '+state.progression.levels[tech];b.appendChild(level);side.appendChild(b);});
+ side.appendChild(actionButton('自动刮卡机  →',()=>{screen='machine';render();},false,'quick-machine'));
+ side.appendChild(actionButton('改命重开  ↗',()=>{screen='rebirth';render();},false,'quick-rebirth'));
+ p(side,state.machine.level?MACHINE_LEVELS[state.machine.level].name+'机 · 已处理 '+state.machine.processed+' 张':'购入机器，让好运自动运转','quick-subtitle');
+}
 function renderControls():void {
  const scrollTop=controls.querySelector('.idiom-catalog')?.scrollTop??0;controls.replaceChildren();
   // Render dynamic text above reusable ornamental art; the poster itself never owns money or payout values.
   const masthead=box('idiom-masthead');controls.appendChild(masthead);
   const sign=box('idiom-sign');masthead.appendChild(sign);
   p(sign,'好运工坊','idiom-sign-title');p(sign,'成语刮刮乐','idiom-sign-subtitle');
-  p(masthead,qa?'QA 试玩':'改命版 V3.1','idiom-version-tag');
+  p(masthead,qa?'QA 试玩':'虚拟现金 · 自动保存','idiom-version-tag');
   const wallet=box('idiom-wallet-bar');masthead.appendChild(wallet);
   const cash=box('idiom-resource cash');wallet.appendChild(cash);
   p(cash,'现金','idiom-resource-label');p(cash,money(state.cash),'idiom-resource-value');
@@ -322,7 +360,6 @@ function renderControls():void {
  top.append(actionButton('永久成长',()=>{screen='growth';riskDialog=false;rebirthQuote=null;render();},false,['growth','build','rebirth'].includes(screen)?'active':'secondary'));
  top.append(actionButton('自动机器',()=>{screen='machine';riskDialog=false;render();},false,screen==='machine'?'active':'secondary'));
  if(screen==='ticket'&&state.active){
-    const emblem=box('idiom-ticket-emblem');emblem.dataset.card=state.active.cardId;controls.appendChild(emblem);
     // The header emblem carries the illustration; keep scratch cells free of decorative overlays.
     // Burst originates at the actual scratched cell. Consume immediately so unrelated re-renders do not replay it.
     if(revealEffect?.nonce===state.active.nonce){
@@ -330,7 +367,7 @@ function renderControls():void {
       const slot=slots(state.active.cardId).find(s=>s.index===effect.index);
       if(slot){
         const flash=box('idiom-reveal-burst'+(effect.kind==='miss'?' miss':''));
-        flash.style.left=String(slot.x+slot.size/2)+'px';flash.style.top=String(slot.y+slot.size/2)+'px';
+        flash.style.left=String(slot.x+slot.size/2)+'px';flash.style.top=String(slot.y+slot.size/2-200)+'px';
         flash.setAttribute('aria-hidden','true');
         for(let n=0;n<9;n++){
           const particle=document.createElement('i'),angle=2*Math.PI*n/9;
@@ -339,7 +376,7 @@ function renderControls():void {
           particle.style.setProperty('--dy',String(Math.round(Math.sin(angle)*(55+n%3*18))));
           flash.appendChild(particle);
         }
-        controls.appendChild(flash);flash.addEventListener('animationend',()=>flash.remove(),{once:true});
+        ticketStage.appendChild(flash);flash.addEventListener('animationend',()=>flash.remove(),{once:true});
       }
     }
     const outcome=resolveTicket(state.active);
@@ -357,10 +394,10 @@ function renderControls():void {
         coin.style.setProperty('--cy',String(Math.round(-74-Math.abs(Math.sin(angle))*82-(i%2)*19)));
         celebrate.appendChild(coin);
       }
-      controls.appendChild(celebrate);
+      ticketStage.querySelector('.idiom-win-celebration')?.remove();ticketStage.appendChild(celebrate);
     }
   }
-  if(screen==='catalog')renderCatalog();else if(screen==='records')renderRecords();else if(screen==='growth')renderGrowth();else if(screen==='machine')renderMachine();else if(screen==='build')renderBuild();else if(screen==='rebirth')renderRebirth();
+  if(screen==='catalog'||screen==='ticket'){renderCatalog();renderQuickGrowth();}else if(screen==='records')renderRecords();else if(screen==='growth')renderGrowth();else if(screen==='machine')renderMachine();else if(screen==='build')renderBuild();else if(screen==='rebirth')renderRebirth();
  const footer=box('idiom-footer');controls.appendChild(footer);
  if(screen==='ticket'&&state.active){
   const t=state.active,r=resolveTicket(t),def=cardDefinition(t.cardId);p(footer,notice||r.message,'idiom-message');
@@ -375,7 +412,7 @@ function renderControls():void {
   else p(footer,'手指来回擦掉银层，抬手揭晓；选择类卡一旦开始刮就锁定选择。','idiom-tip');
  }else if(screen==='catalog'){
   const def=cardDefinition(selected),locked=CARDS.indexOf(def)>=state.unlockedCount;
-  p(footer,notice||def.name+' · '+growthSummary(def.id)+'（测试配置）','idiom-message');
+  p(footer,notice||def.name+' · '+def.rule,'idiom-message');
   const pending=!!state.active&&!state.active.settled;
   const draft=!pending&&!!state.runBuild.pending;
   footer.append(actionButton(pending?'继续未完成的卡':draft?'选择本局强化':locked?'尚未解锁':`买 ${def.name} · ${money(def.price)}`,
@@ -407,15 +444,14 @@ function renderControls():void {
  }
 }
 function render():void {
- if(!scene)return;scene.destroyChildren();foil.beginFrame();
- panel(0,0,W,H,C.bg,0);panel(25,22,700,167,'#263246',27,'#526079');
- text(50,30,'好运工坊',37,C.paper,350,'left',true);text(430,40,qa?'QA试玩 · 独立测试':'改命版 V3.1',20,C.gold,267,'right');
- text(50,89,'现金  '+money(state.cash),33,C.gold,640,'left',true);text(50,142,'已解锁 '+state.unlockedCount+'/18  ·  福运点 '+state.progression.points+'  ·  买票结果固定',21,C.muted,640);
- if(screen==='ticket')ticketView();renderControls();foil.endFrame();if(screen!=='ticket'||riskDialog||rebirthQuote)foil.setEnabled(false);
+ if(!scene)return;scene.replaceChildren();foil.beginFrame();
+ ticketStage.querySelectorAll('.idiom-win-celebration,.idiom-reveal-burst').forEach(el=>el.remove());
+ if(screen==='ticket')ticketView();else if(screen==='catalog')renderPreview();
+ renderControls();foil.endFrame();if(screen!=='ticket'||riskDialog||rebirthQuote)foil.setEnabled(false);
  root.dataset.screen=screen;root.dataset.selectedCard=selected;root.dataset.cash=state.cash.toString();root.dataset.qa=String(qa);
  root.dataset.readOnly=String(!writer);
  root.dataset.pendingDraft=String(!!state.runBuild.pending);root.dataset.rebirthCount=String(state.rebirth.count);
- updateMachineProgress();
+ updateMachineProgress();sizeToWindow();
 }
 async function acquireWriter():Promise<void> {
  if(qa){writer=true;return;}
@@ -438,10 +474,17 @@ function machineTick():void {
 }
 async function boot():Promise<void> {
  await acquireWriter();
- sizeToWindow();window.addEventListener('resize',sizeToWindow);if(typeof Laya==='undefined')throw new Error('LayaAir 3.4 引擎未加载');
- await Laya.init(W,H);Laya.stage.scaleMode=Laya.Stage.SCALE_NOSCALE;Laya.stage.screenMode=Laya.Stage.SCREEN_NONE;Laya.stage.bgColor=C.bg;
- const canvas=Laya.Browser.mainCanvas.source as HTMLCanvasElement;root.insertBefore(canvas,foilRoot);canvas.style.cssText='position:absolute;left:0;top:0;width:750px;height:1334px;';
- scene=new Laya.Sprite();Laya.stage.addChild(scene);
+ window.addEventListener('resize',sizeToWindow);
+ new ResizeObserver(sizeToWindow).observe(worktable);
+ // The interface already uses a DOM overlay and Canvas2D foil. Keep the LayaAir
+ // runtime on supported hardware, with the same interaction layer if WebGL is absent.
+ const probe=document.createElement('canvas');
+ const gl=probe.getContext('webgl2')??probe.getContext('webgl');
+ if(gl&&typeof Laya!=='undefined'){
+  gl.getExtension('WEBGL_lose_context')?.loseContext();
+  await Laya.init(W,H);Laya.stage.scaleMode=Laya.Stage.SCALE_NOSCALE;Laya.stage.screenMode=Laya.Stage.SCREEN_NONE;
+  const canvas=Laya.Browser.mainCanvas.source as HTMLCanvasElement;canvas.style.display='none';root.dataset.renderer='laya-webgl';
+ }else root.dataset.renderer='canvas2d';
  if(qa){state=newGame('qa-'+crypto.randomUUID());state.cash=2000000000000n;state.peak=state.cash;state.unlockedCount=18;}
  else{const loaded=loadGame(localStorage,crypto.randomUUID());state=loaded.state;legacyFound=loaded.legacy;}
  if(state.active){selected=state.active.cardId;screen='ticket';}render();save();

@@ -1,7 +1,7 @@
 name: V3.1 Rebirth Rules and Browser QA
 on:
   push:
-    branches: [main, v31-basic-cards, v31-permanent-growth, v31-auto-machine, v31-rebirth]
+    branches: [main, v31-basic-cards, v31-permanent-growth, v31-auto-machine, v31-rebirth, v34-counter-art]
   pull_request:
 jobs:
   test:
@@ -29,10 +29,9 @@ jobs:
           done
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
-        env:
-          BROWSER_QUICK: '1'
       - run: npm run test:machine-browser
       - run: npm run test:rebirth-browser
+      - run: npm run test:art
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -146,7 +146,7 @@ try{
  const devil=fixture('T18','bankrupt');await install(stateFor(devil));await scratch(0);
  assert.equal(await page.locator('#game-root').getAttribute('data-cash'),'0');assert.equal(await page.locator('#game-root').getAttribute('data-status'),'bankrupt');
  const navBox=await page.locator('.idiom-top').boundingBox(),footerBox=await page.locator('.idiom-footer').boundingBox();
- assert.ok(footerBox.y>=navBox.y+navBox.height,'Bankruptcy footer covers navigation');
+ assert.ok(footerBox.y+footerBox.height<=navBox.y+1||footerBox.y>=navBox.y+navBox.height-1,'Bankruptcy footer covers navigation');
  await shot('mobile-bankrupt');await page.getByRole('button',{name:/领取20元恢复金/}).click();assert.equal(await page.locator('#game-root').getAttribute('data-cash'),'20');checks.push('T18 bankruptcy then recovery');
  await install(newGame('viewport'));
  for(const view of [{width:360,height:640},{width:844,height:390},{width:1280,height:900}]){
