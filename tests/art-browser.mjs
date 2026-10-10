@@ -20,7 +20,7 @@ async function exercise(b,profile){
  const foil=page.locator('canvas[data-index="0"]'),box=await foil.boundingBox();assert.ok(box&&box.width>60,'Foil remains usable');
  assert.equal(await foil.evaluate(e=>e.getRootNode().querySelector('.idiom-ticket-stage').contains(e)),true);
  await page.screenshot({path:resolve(out,profile.name+'-ticket.png')});
- const step=box.width*20/270;
+ const designSize=await foil.evaluate(e=>parseFloat(e.style.width));const step=box.width*20/designSize;
  if(profile.options.hasTouch){
   const cdp=await context.newCDPSession(page),send=(type,x,y)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{x,y,radiusX:2,radiusY:2,force:1}]});
   await send('touchStart',box.x+box.width*.12,box.y+box.height*.12);

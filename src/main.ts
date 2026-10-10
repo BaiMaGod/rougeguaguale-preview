@@ -105,7 +105,7 @@ function slots(id:CardId):Slot[] {
  const row=(count:number,size=170,y=630):Slot[]=>Array.from({length:count},(_,index)=>({index,size,x:(W-count*size-(count-1)*28)/2+index*(size+28),y,label:`第${index+1}格`}));
  const grid=(count:number,columns:number,size:number,y:number,gap=26):Slot[]=>Array.from({length:count},(_,index)=>({index,size,x:(W-columns*size-(columns-1)*gap)/2+index%columns*(size+gap),y:y+Math.floor(index/columns)*(size+gap+35),label:`第${index+1}格`}));
  switch(mode){
-  case 'amount':return [{index:0,x:240,y:590,size:270,label:'刮开金额'}];
+  case 'amount':return [{index:0,x:205,y:535,size:340,label:'刮开金额'}];
   case 'heart':return [{index:0,x:235,y:580,size:280,label:'寻找金色真心',heart:true}];
   case 'pair':return row(3).map(s=>({...s,label:'福运图案'}));
   case 'multiply':return row(2,215).map(s=>({...s,label:s.index?'右侧数字':'左侧数字'}));
@@ -137,13 +137,14 @@ function ticketView():void {
  const heading=warm?'#a84b45':emerald?'#346959':'#a64a3c';
  const paper=panel(34,210,682,908,'#f5e8ce',2,heading);paper.classList.add('ticket-paper');
  const frame=panel(54,232,642,864,'transparent',0,heading);frame.classList.add('ticket-inner-frame');
- panel(66,278,618,103,heading,0);
- text(78,231,'入门成语票  /  '+def.id,22,heading,550);
- text(83,287,def.name,54,'#fff1d5',580,'center',true);
- text(76,345,'票价 '+money(def.price)+'     基础最高 '+money(def.headlinePrize),20,'#fff1d5',600,'center');
- text(66,390,def.rule,25,C.ink,618,'center',true);
+ const roomy=!['sum','position','path','cashout','ledger','ladder'].includes(def.mode);
+ panel(66,278,618,roomy?141:103,heading,0);
+ text(78,231,(CARDS.indexOf(def)<6?'入门':CARDS.indexOf(def)<12?'进阶':CARDS.indexOf(def)<16?'冲刺':'终极')+'成语票  /  '+def.id,22,heading,550);
+ text(83,roomy?284:287,def.name,roomy?78:54,'#fff1d5',580,'center',true).classList.add('ticket-name');
+ text(76,roomy?380:345,'票价 '+money(def.price)+'     基础最高 '+money(def.headlinePrize),20,'#fff1d5',600,'center');
+ text(66,roomy?430:390,def.rule,def.rule.length>24?22:25,C.ink,618,'center',true);
  const tool=scratchTool(t.growth?.scratch??0),model=growthModel(t.cardId,t.growth??zeroLevels());
- const hint=text(66,430,(t.boost?'本票强化：'+boostInfo(t.boost).name:def.hint)+'\n'+tool.name+' Lv.'+(t.growth?.scratch??0)+' · 本票奖金 ×'+multiplier(model.bonusBps)+(t.boost==='rise'?'（翻倍后封顶3000元）':''),19,'#7c715f',618,'center');hint.style.height='55px';
+ const hint=text(66,roomy?472:430,(t.boost?'本票强化：'+boostInfo(t.boost).name:def.hint)+'\n'+tool.name+' Lv.'+(t.growth?.scratch??0)+' · 本票奖金 ×'+multiplier(model.bonusBps)+(t.boost==='rise'?'（翻倍后封顶3000元）':''),19,'#7c715f',618,'center');hint.style.height='55px';
  const motif=box('ticket-motif');motif.style.backgroundImage=`url('./assets/ticket-${def.id.toLowerCase()}.svg')`;scene!.appendChild(motif);
  if(['amount','heart','pair','multiply','compare','dice','hearts','eye','double','destiny'].includes(def.mode)){
   const vignette=box('ticket-vignette');vignette.setAttribute('aria-hidden','true');scene!.appendChild(vignette);
@@ -184,8 +185,8 @@ function ticketView():void {
 }
 function renderCatalog():void {
  const scroll=box('idiom-catalog');controls.appendChild(scroll);
- const intro=box('idiom-intro');p(intro,'一张成语 · 一句规则','idiom-title');
- p(intro,'选一张卡，买票后在银层上来回刮。所有金额均为游戏内虚拟现金。');scroll.appendChild(intro);
+ const intro=box('idiom-intro');p(intro,'成语卡册','idiom-title');
+ p(intro,'选一张成语，刮一份好运');scroll.appendChild(intro);
  const grid=box('idiom-card-grid');scroll.appendChild(grid);
  CARDS.forEach((def,i)=>{
   const unlocked=i<state.unlockedCount,b=document.createElement('button');b.type='button';
@@ -193,7 +194,7 @@ function renderCatalog():void {
   p(b,def.id+' · '+(i<6?'入门':i<12?'发展':i<16?'冲刺':'终极'),'idiom-tier');p(b,def.name,'idiom-card-name');p(b,'票价 '+money(def.price),'idiom-price');
   p(b,def.rule,'idiom-rule');p(b,'基础最高 '+money(def.headlinePrize),'idiom-prize');
   p(b,unlocked?`本局完成 ${state.runStats[def.id]?.played??0} 张 · 历史中奖 ${state.stats[def.id]?.won??0} 次`:'解锁：前一卡完成3张 + 本局最高现金'+money(def.price*2n),'idiom-lock');
-  b.addEventListener('click',()=>{selected=def.id;screen='catalog';notice=unlocked?'':'这张卡尚未解锁，先完成前一卡与财富目标';render();});grid.appendChild(b);
+  b.addEventListener('click',()=>{selected=def.id;screen='catalog';notice=unlocked?'':'解锁条件：前一卡完成3张，本局最高现金达到 '+money(def.price*2n);render();});grid.appendChild(b);
  });
 }
 function renderRecords():void {
@@ -319,9 +320,9 @@ function renderPreview():void {
  const paper=panel(34,210,682,908,'#f5e8ce',2,heading);paper.classList.add('ticket-paper');
  panel(54,232,642,864,'transparent',0,heading).classList.add('ticket-inner-frame');
  text(78,231,'好运工坊  /  '+def.id,22,heading,550);
- panel(66,278,618,103,heading,0);text(83,287,def.name,54,'#fff1d5',580,'center',true);
- text(76,345,'票价 '+money(def.price)+'     基础最高 '+money(def.headlinePrize),20,'#fff1d5',600,'center');
- text(66,402,def.rule,26,'#514436',618,'center',true);text(86,451,def.hint,21,'#7c715f',580,'center');
+ panel(66,278,618,141,heading,0);text(83,284,def.name,78,'#fff1d5',580,'center',true).classList.add('ticket-name');
+ text(76,380,'票价 '+money(def.price)+'     基础最高 '+money(def.headlinePrize),20,'#fff1d5',600,'center');
+ text(66,433,def.rule,26,'#514436',618,'center',true);text(86,479,def.hint,21,'#7c715f',580,'center');
  const cover=panel(208,534,334,334,'#b6b6ae',16,'#96968f');cover.classList.add('preview-foil');
  text(209,657,'买票后，来回刮开',27,'#5c615e',330,'center',true);
  const vignette=box('ticket-vignette');scene!.appendChild(vignette);

@@ -43,6 +43,7 @@ jobs:
           BROWSER_QUICK: '1'
       - run: npm run test:machine-browser
       - run: npm run test:rebirth-browser
+      - run: npm run test:art
       - name: Assemble verified static game
         run: |
           mkdir -p site

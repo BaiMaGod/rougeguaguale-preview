@@ -95,3 +95,9 @@ html,body{background:#37271d;color:var(--ink);font-family:"PingFang SC","Microso
 #game-root[data-screen='ticket'] .idiom-footer{bottom:65px}
 @media(max-width:760px){#game-root[data-screen='ticket'] .idiom-footer{bottom:66px}}
 .idiom-card::before{height:auto;background:none}
+/* Final concept comparison pass: stronger printed hierarchy, lighter side catalogue. */
+.idiom-intro .idiom-title{color:#fff0d5!important;font-size:25px!important;letter-spacing:4px}
+.idiom-card .idiom-lock{display:none}.idiom-card{min-height:107px}
+.ticket-print.ticket-name{font-family:'STKaiti','KaiTi','Noto Serif CJK SC','Songti SC',serif;letter-spacing:5px;font-weight:900}
+.ticket-inner-frame{background-image:repeating-radial-gradient(ellipse at 20% 82%,transparent 0 11px,#a64a3c08 11px 12px,transparent 12px 24px)}
+.ticket-vignette{top:930px;left:124px;width:500px;height:126px}
