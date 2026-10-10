@@ -294,13 +294,33 @@ function updateMachineProgress():void {
 }
 function renderControls():void {
  const scrollTop=controls.querySelector('.idiom-catalog')?.scrollTop??0;controls.replaceChildren();
+  // Render dynamic text above reusable ornamental art; the poster itself never owns money or payout values.
+  const masthead=box('idiom-masthead');controls.appendChild(masthead);
+  const sign=box('idiom-sign');masthead.appendChild(sign);
+  p(sign,'好运工坊','idiom-sign-title');p(sign,'成语刮刮乐','idiom-sign-subtitle');
+  p(masthead,qa?'QA 试玩':'改命版 V3.1','idiom-version-tag');
+  const wallet=box('idiom-wallet-bar');masthead.appendChild(wallet);
+  const cash=box('idiom-resource cash');wallet.appendChild(cash);
+  p(cash,'现金','idiom-resource-label');p(cash,money(state.cash),'idiom-resource-value');
+  const fortune=box('idiom-resource fortune');wallet.appendChild(fortune);
+  p(fortune,'福运点','idiom-resource-label');p(fortune,String(state.progression.points),'idiom-resource-value');
+  const progress=box('idiom-resource progress');wallet.appendChild(progress);
+  p(progress,'图鉴','idiom-resource-label');p(progress,state.unlockedCount+'/18','idiom-resource-value');
  const top=box('idiom-top');controls.appendChild(top);
  top.append(actionButton('成语卡册',()=>{screen='catalog';riskDialog=false;render();},false,screen==='catalog'?'active':'secondary'));
  top.append(actionButton('当前刮卡',()=>{screen='ticket';render();},!state.active,screen==='ticket'?'active':'secondary'));
  top.append(actionButton('刮奖记录',()=>{screen='records';render();},false,screen==='records'?'active':'secondary'));
  top.append(actionButton('永久成长',()=>{screen='growth';riskDialog=false;rebirthQuote=null;render();},false,['growth','build','rebirth'].includes(screen)?'active':'secondary'));
  top.append(actionButton('自动机器',()=>{screen='machine';riskDialog=false;render();},false,screen==='machine'?'active':'secondary'));
- if(screen==='catalog')renderCatalog();else if(screen==='records')renderRecords();else if(screen==='growth')renderGrowth();else if(screen==='machine')renderMachine();else if(screen==='build')renderBuild();else if(screen==='rebirth')renderRebirth();
+ if(screen==='ticket'&&state.active){
+    const emblem=box('idiom-ticket-emblem');emblem.dataset.card=state.active.cardId;controls.appendChild(emblem);
+    const outcome=resolveTicket(state.active);
+    if(outcome.status==='won'){
+      const celebrate=box('idiom-win-celebration');p(celebrate,'恭喜中奖 '+money(outcome.prize)+'！');
+      controls.appendChild(celebrate);
+    }
+  }
+  if(screen==='catalog')renderCatalog();else if(screen==='records')renderRecords();else if(screen==='growth')renderGrowth();else if(screen==='machine')renderMachine();else if(screen==='build')renderBuild();else if(screen==='rebirth')renderRebirth();
  const footer=box('idiom-footer');controls.appendChild(footer);
  if(screen==='ticket'&&state.active){
   const t=state.active,r=resolveTicket(t),def=cardDefinition(t.cardId);p(footer,notice||r.message,'idiom-message');
@@ -352,7 +372,7 @@ function render():void {
  text(50,30,'好运工坊',37,C.paper,350,'left',true);text(430,40,qa?'QA试玩 · 独立测试':'改命版 V3.1',20,C.gold,267,'right');
  text(50,89,'现金  '+money(state.cash),33,C.gold,640,'left',true);text(50,142,'已解锁 '+state.unlockedCount+'/18  ·  福运点 '+state.progression.points+'  ·  买票结果固定',21,C.muted,640);
  if(screen==='ticket')ticketView();renderControls();foil.endFrame();if(screen!=='ticket'||riskDialog||rebirthQuote)foil.setEnabled(false);
- root.dataset.screen=screen;root.dataset.cash=state.cash.toString();root.dataset.qa=String(qa);
+ root.dataset.screen=screen;root.dataset.selectedCard=selected;root.dataset.cash=state.cash.toString();root.dataset.qa=String(qa);
  root.dataset.readOnly=String(!writer);
  root.dataset.pendingDraft=String(!!state.runBuild.pending);root.dataset.rebirthCount=String(state.rebirth.count);
  updateMachineProgress();

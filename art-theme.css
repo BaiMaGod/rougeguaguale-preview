@@ -1,0 +1,239 @@
+
+/* 好运工坊 · V3.1 票券美术整合。设计逻辑坐标 750×1334，所有数值仍由 TS 动态渲染。 */
+#game-root { isolation:isolate; }
+#idiom-controls { color:#fff4d8; font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif; }
+#idiom-controls::before {
+ content:""; position:absolute;inset:0;z-index:0;pointer-events:none;
+ background:
+   radial-gradient(ellipse 350px 240px at 50% 10%,#f1a94124,transparent 75%),
+   radial-gradient(ellipse 280px 440px at 0% 65%,#008ae638,transparent 78%),
+   radial-gradient(ellipse 320px 400px at 100% 77%,#a12f7538,transparent 72%),
+   linear-gradient(180deg,#090b20ad,#0c1839c9 47%,#0b1029d7),
+   url("./assets/workshop-scene.svg") center center / cover no-repeat;
+}
+#game-root[data-screen="ticket"] #idiom-controls::before{display:none}
+#idiom-controls > .idiom-top,
+#idiom-controls > .idiom-catalog,
+#idiom-controls > .idiom-footer,
+#idiom-controls > .idiom-modal,
+#idiom-controls > .idiom-ticket-emblem,
+#idiom-controls > .idiom-win-celebration {z-index:2}
+.idiom-masthead {
+ position:absolute;top:0;left:0;right:0;height:195px;z-index:4;pointer-events:none;
+ background:linear-gradient(180deg,#091024 4%,#0b1b39 65%,#0d1b37 88%,transparent 100%);
+}
+.idiom-sign{
+ position:absolute;left:170px;right:170px;top:4px;height:107px;text-align:center;
+ border:3px solid #d5a75b;border-radius:15px 15px 21px 21px;
+ background:linear-gradient(120deg,#061d37 0%,#16415a 50%,#082139 100%);
+ box-shadow:0 5px 0 #4b2b20,0 8px 24px #020817,inset 0 0 0 4px #031429,inset 0 6px 15px #ffdc8144;
+ transform:perspective(400px) rotateX(-2deg);
+}
+.idiom-sign::before,.idiom-sign::after{content:"❖";position:absolute;top:30px;color:#fbd27d;font-size:20px}
+.idiom-sign::before{left:9px}.idiom-sign::after{right:9px}
+#idiom-controls .idiom-sign-title{
+ margin:4px 0 0;font-size:48px;line-height:1.3;font-weight:1000;letter-spacing:5px;
+ color:#ffedaa;-webkit-text-stroke:1px #b95a15;
+ text-shadow:0 3px 0 #9b300a,0 5px 0 #5f270d,0 7px 11px #03071a,0 0 19px #ffcb4f75
+}
+#idiom-controls .idiom-sign-subtitle{
+ display:inline-block;margin:1px auto 0;padding:0 28px;font-size:18px;font-weight:900;letter-spacing:4px;
+ color:#5d250b;background:linear-gradient(#fff0bb,#d8ab62);border-radius:2px 2px 9px 9px;
+ box-shadow:0 3px 0 #77461e
+}
+#idiom-controls .idiom-version-tag{
+ position:absolute;right:24px;top:12px;padding:8px 11px;margin:0;
+ border:1px solid #c09a54;border-radius:8px;background:#2a1734;color:#ffe4a1;
+ font-size:16px;line-height:1.1;box-shadow:0 2px 6px #050914
+}
+.idiom-wallet-bar{
+ position:absolute;left:24px;right:24px;top:119px;height:72px;display:grid;
+ grid-template-columns:1.2fr 1fr .8fr;gap:8px;padding:7px 9px;border:2px solid #dba75a;border-radius:16px;
+ background:linear-gradient(135deg,#103b63,#091b3f 56%,#102955);
+ box-shadow:inset 0 3px 14px #5087af45,0 5px 0 #51371d,0 8px 22px #010616bb
+}
+.idiom-resource{position:relative;min-width:0;padding:4px 5px 3px 54px;border-right:1px solid #b99b784d}
+.idiom-resource:last-child{border:0}
+.idiom-resource::before{content:"🪙";position:absolute;left:5px;top:4px;font-size:34px;filter:drop-shadow(0 2px 2px #020711)}
+.idiom-resource.fortune::before{content:"🧧"}.idiom-resource.progress::before{content:"🎟️"}
+#idiom-controls .idiom-resource-label{margin:0;color:#d2e2f9;font-size:16px;line-height:1.15}
+#idiom-controls .idiom-resource-value{margin:2px 0 0;color:#ffe3a0;font-size:25px;font-weight:1000;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 2px 4px #0c0716}
+#idiom-controls .idiom-resource.progress .idiom-resource-value{font-size:22px}
+#idiom-controls .idiom-top{
+ top:202px;left:25px;right:25px;gap:7px;padding:2px 0 7px
+}
+#idiom-controls .idiom-top .idiom-btn{
+ min-width:0;flex:1;min-height:72px;padding:9px 3px;margin:0;
+ font-size:20px;font-weight:900;white-space:nowrap;border-radius:13px;
+ background:linear-gradient(160deg,#203d6b,#12294f 66%,#081735);
+ border:2px solid #537aa6;color:#f3e8df;
+ box-shadow:inset 0 2px 1px #a9d3fa32,inset 0 -4px 2px #020d22aa,0 4px 0 #050b1b;
+ text-shadow:0 2px 3px #04081a
+}
+#idiom-controls .idiom-top .idiom-btn.active{
+ color:#642704;background:linear-gradient(170deg,#fff7c2,#f9cb60 50%,#cc7a22);
+ border-color:#ffe6a4;text-shadow:0 1px 0 #fff9b5;
+ box-shadow:inset 0 3px 5px #ffffffb3,0 0 0 2px #b76c20,0 0 23px #f8b6339c,0 5px 0 #764113
+}
+#idiom-controls .idiom-top .idiom-btn:disabled{opacity:.4}
+#idiom-controls .idiom-catalog{
+ top:290px;bottom:198px;left:26px;right:26px;
+ padding:0 5px 25px; scrollbar-color:#be9c5e88 transparent
+}
+#idiom-controls .idiom-intro{
+ min-height:55px; padding:4px 5px 10px;display:flex;flex-direction:column;justify-content:center;
+}
+#idiom-controls .idiom-intro .idiom-title{
+ margin:0 0 3px;font-size:25px;line-height:1.3;font-weight:900;
+ color:#ffdb93;text-shadow:0 2px 4px #0009
+}
+#idiom-controls .idiom-intro p:not(.idiom-title){margin:0;font-size:16px;line-height:1.3;color:#b6c5e6}
+#idiom-controls .idiom-card-grid{gap:14px}
+#idiom-controls .idiom-card{
+ --card1:#0b518b;--card2:#11234d;--foil:#5bcbf6;
+ position:relative;isolation:isolate;overflow:hidden;
+ min-height:315px;padding:19px 19px 14px; border-radius:18px;
+ border:3px solid #82d9f4;
+ background:
+ radial-gradient(ellipse at 92% 18%,#effcfc28 0%,transparent 57%),
+ repeating-linear-gradient(145deg,transparent 0 30px,#f4dcb806 31px 33px),
+ linear-gradient(145deg,var(--card1),var(--card2) 74%);
+ box-shadow:inset 0 0 0 3px #091c3977,inset 0 10px 22px #ffffff18,0 5px 0 #050c25,0 8px 18px #030514b8;
+ transition:border-color .15s,box-shadow .15s,transform .15s;
+}
+#idiom-controls .idiom-card::before {
+ position:absolute;content:"";inset:7px;z-index:-1;height:auto;
+ border:1px solid #ffffff5c;border-radius:10px;
+ background:linear-gradient(90deg,#00000042,transparent 75%);
+ pointer-events:none
+}
+#idiom-controls .idiom-card::after{
+ position:absolute;content:"";right:0;top:50px;width:172px;height:180px;z-index:-1;
+ opacity:.9;pointer-events:none;background-position:center;background-size:contain;background-repeat:no-repeat;
+ filter:drop-shadow(0 9px 9px #080d25a6)
+}
+#idiom-controls .idiom-card:nth-child(1){--card1:#1373a9;--card2:#073459;border-color:#42ccff}
+#idiom-controls .idiom-card:nth-child(1)::after{background-image:url("./assets/ticket-t01.svg")}
+#idiom-controls .idiom-card:nth-child(2){--card1:#c63160;--card2:#4b1236;border-color:#fa9d71}
+#idiom-controls .idiom-card:nth-child(2)::after{background-image:url("./assets/ticket-t02.svg")}
+#idiom-controls .idiom-card:nth-child(3){--card1:#157d6e;--card2:#073f4f;border-color:#8ddec0}
+#idiom-controls .idiom-card:nth-child(3)::after{background-image:url("./assets/ticket-t03.svg")}
+#idiom-controls .idiom-card:nth-child(4){--card1:#69439b;--card2:#282147;border-color:#a693e5}
+#idiom-controls .idiom-card:nth-child(4)::after{background-image:url("./assets/ticket-t04.svg")}
+#idiom-controls .idiom-card:nth-child(5n + 5){--card1:#1768ae;--card2:#29236a;border-color:#8dbffb}
+#idiom-controls .idiom-card:nth-child(5n + 6){--card1:#814d2f;--card2:#3d2845;border-color:#d6b276}
+#idiom-controls .idiom-card:nth-child(5n + 7){--card1:#af3653;--card2:#411d56;border-color:#ff9a97}
+#idiom-controls .idiom-card:nth-child(5n + 8){--card1:#3d8b67;--card2:#143b62;border-color:#9fd0a1}
+#idiom-controls .idiom-card:nth-child(5n + 9){--card1:#906bb0;--card2:#332864;border-color:#bdaaff}
+#idiom-controls .idiom-card.selected{
+ border-color:#fff2aa;
+ box-shadow:inset 0 0 0 3px #fff5a44d,0 0 0 2px #a9511a,0 0 24px #ffc66eaa,0 5px 0 #6b310f;
+ transform:translateY(-2px)
+}
+#idiom-controls .idiom-card.locked{opacity:.72;filter:saturate(.5)}
+#idiom-controls .idiom-card.locked::after{filter:grayscale(1) brightness(.6)}
+#idiom-controls .idiom-card.locked .idiom-card-name{color:#b5b4ce}
+#idiom-controls .idiom-card.locked::before{background:linear-gradient(115deg,#0b092480,#050615bc)}
+#idiom-controls .idiom-card .idiom-tier{
+ display:inline-block;width:auto;margin:0 0 10px;padding:3px 11px;
+ border-radius:17px;background:#08152899;border:1px solid #ffe8bf6b;
+ font-size:16px;color:#ffeab4;font-weight:800;
+}
+#idiom-controls .idiom-card .idiom-card-name{
+ position:relative;font-size:32px;line-height:1.3;letter-spacing:1px;
+ font-weight:1000;color:#fff5be;
+ margin:2px 0 8px;text-shadow:0 3px 0 #621b20,0 5px 5px #02071c;
+ -webkit-text-stroke:.45px #563017;
+}
+#idiom-controls .idiom-card .idiom-price{
+ display:inline-block;margin:0 0 6px;padding:3px 13px;border:1px solid #fce9b87c;
+ border-radius:18px;background:linear-gradient(90deg,#3b1b1b96,#1c213b88);
+ font-size:22px;font-weight:900;color:#ffdf8c
+}
+#idiom-controls .idiom-card .idiom-rule{
+ position:relative;max-width:100%;min-height:66px;margin:8px 0 3px;
+ font-size:17px;font-weight:650;color:#fff5e9;
+ text-shadow:0 1px 3px #020816,0 2px 6px #020816;
+}
+#idiom-controls .idiom-card .idiom-prize{
+ position:relative;display:block;max-width:max-content;padding:7px 15px;margin:2px 0 11px;
+ border-radius:5px 17px 5px 6px;border:1px solid #fff1b6;
+ background:linear-gradient(#fff4ad,#e5a64d 70%,#b97c2b);
+ box-shadow:0 3px 0 #7b3f23,0 0 13px #fdc34966;
+ color:#863016;font-size:19px;line-height:1.15;font-weight:1000;text-shadow:0 1px #ffe9b0
+}
+#idiom-controls .idiom-card .idiom-lock{
+ margin:8px 0 0;line-height:1.25;font-size:15px;color:#d3e2ec;
+ text-shadow:0 1px 4px #000d
+}
+#idiom-controls .idiom-card:focus-visible,#idiom-controls .idiom-btn:focus-visible{
+ outline:4px solid #fff8cd;outline-offset:2px
+}
+#idiom-controls .idiom-footer {
+ left:25px;right:25px;bottom:13px;min-height:174px;padding:12px 14px 11px;
+ border:2px solid #c48a49;border-radius:19px;
+ background:linear-gradient(135deg,#122e51f5,#0b1635fc 63%,#16162cfa);
+ box-shadow:inset 0 2px 7px #7ea3c658,0 4px 0 #4f301b,0 0 25px #030715b5
+}
+#idiom-controls .idiom-footer .idiom-message{
+ font-size:20px;line-height:1.28;color:#ffe7a9;font-weight:850;
+ margin:6px 0 9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+#idiom-controls .idiom-btn:not(.secondary):not(.active){
+ border:2px solid #fff0bb;border-radius:17px;
+ background:linear-gradient(180deg,#fff6c4 0%,#ffdd74 39%,#e5a043 93%,#bc7227);
+ box-shadow:inset 0 4px 9px #ffffffa8,inset 0 -5px 8px #a34c0a52,0 5px 0 #75421a,0 0 15px #f2bc5861;
+ color:#75280d;text-shadow:0 1px 0 #fff2ad
+}
+#idiom-controls .idiom-btn.secondary{
+ background:linear-gradient(#24527b,#112b55 75%,#102048);border:2px solid #5f9ac5;color:#f5f5ee;
+ box-shadow:inset 0 2px #ffffff28,0 4px 0 #081229
+}
+#idiom-controls .idiom-footer>.idiom-btn{min-height:82px;margin:7px 0 0;font-size:30px}
+#idiom-controls .idiom-catalog .idiom-title{color:#ffe6aa}
+#idiom-controls .idiom-tech,#idiom-controls .idiom-receipt{
+ background:linear-gradient(145deg,#1e4561ed,#112b4deb);border:2px solid #b18b5888;
+ box-shadow:inset 0 2px #ffffff0f,0 4px 12px #0008
+}
+#idiom-controls .idiom-machine-form{background:linear-gradient(135deg,#184464,#172443)}
+#game-root[data-screen="ticket"] #idiom-controls::after{
+ content:"";position:absolute;left:33px;top:210px;width:682px;height:905px;z-index:1;
+ border:7px double #e1ac53;border-radius:29px;pointer-events:none;
+ box-shadow:inset 0 0 0 4px #7f3c2661,inset 0 0 20px #f7bd5b53,0 0 20px #ffc65a3b;
+ background:linear-gradient(180deg,#ffdc7736 0%,transparent 13%,transparent 79%,#5a30172c)
+}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem{
+ position:absolute;left:532px;top:252px;width:146px;height:146px;
+ border:4px solid #f5d88e;border-radius:50%;z-index:2;
+ background:radial-gradient(circle at 35% 30%,#fce4bb,#9d4050 58%,#481730 85%);
+ box-shadow:0 4px 11px #0006,inset 0 0 0 4px #b26a3288,0 0 14px #edba7f99;
+ pointer-events:none
+}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem::after{
+ content:"✦";display:flex;align-items:center;justify-content:center;
+ width:100%;height:100%;font-size:72px;color:#fff2b5;text-shadow:0 3px 5px #4f1642
+}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T01"]::after{content:"⑤"}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T02"]::after{
+ content:"";background:url("./assets/ticket-t02.svg") center / contain no-repeat
+}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T03"]::after{content:"㉑"}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T04"]::after{content:"🏆";font-size:60px}
+#game-root[data-screen="ticket"] .idiom-top{top:1124px;gap:7px}
+#game-root[data-screen="ticket"] #idiom-controls .idiom-top .idiom-btn{min-height:79px;font-size:20px}
+#game-root[data-screen="ticket"] #idiom-controls .idiom-footer{
+ top:1214px;bottom:9px;min-height:0;padding:4px 13px 7px
+}
+#game-root[data-screen="ticket"] #idiom-controls .idiom-footer .idiom-btn{min-height:60px;font-size:25px}
+#game-root[data-screen="ticket"] .idiom-win-celebration{
+ position:absolute;left:105px;right:105px;top:1017px;text-align:center;z-index:3;
+ border:3px solid #ffdd73;border-radius:29px;
+ background:linear-gradient(180deg,#bd2441,#6a1d47);box-shadow:0 0 0 5px #e4a44852,0 0 30px #f7bc6da5;
+ pointer-events:none;animation:win-pop .38s cubic-bezier(.2,1.5,.55,1) both
+}
+#game-root[data-screen="ticket"] .idiom-win-celebration p{
+ font-size:31px;color:#fff4b4;line-height:1.3;font-weight:1000;
+ margin:9px 3px;text-shadow:0 3px 2px #962d10
+}
+@keyframes win-pop{from{opacity:.3;transform:translateY(15px) scale(.86)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.idiom-win-celebration{animation:none!important}.idiom-card{transition:none!important}}
