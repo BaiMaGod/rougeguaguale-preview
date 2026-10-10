@@ -237,3 +237,22 @@
 }
 @keyframes win-pop{from{opacity:.3;transform:translateY(15px) scale(.86)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.idiom-win-celebration{animation:none!important}.idiom-card{transition:none!important}}
+
+
+/* 真实手机截图复核：让四张主题插画显示于卡片上层，并提高文字对比 */
+body{background:#0a1126 url("./assets/workshop-scene.svg") center / cover no-repeat}
+#idiom-controls .idiom-card::after{z-index:1;opacity:.95}
+#idiom-controls .idiom-card::before{z-index:0}
+#idiom-controls .idiom-card>p{position:relative;z-index:2}
+#idiom-controls .idiom-card .idiom-card-name{color:#fff5cb;-webkit-text-stroke:0;text-shadow:0 2px 1px #6f251f,0 3px 6px #000d,0 0 11px #ffe7ac77}
+#idiom-controls .idiom-card.locked{filter:saturate(.65);opacity:.82}
+#idiom-controls .idiom-card.locked .idiom-card-name{color:#e4def4;text-shadow:0 2px 2px #13102e,0 0 7px #c8b8ed88}
+#idiom-controls .idiom-card.locked::after{filter:grayscale(.5) brightness(.86)}
+#idiom-controls .idiom-sign-title{color:#fff0aa;-webkit-text-stroke:.8px #a54b15;text-shadow:0 1px 0 #ffe39a,0 3px 0 #ad511d,0 5px 7px #120719,0 0 17px #ffd471bc}
+#game-root[data-screen="ticket"] #idiom-controls::after{background:radial-gradient(circle at 12% 12%,#fdd77836,transparent 22%),radial-gradient(circle at 88% 16%,#e287a735,transparent 25%),linear-gradient(180deg,#ffeeb419,transparent 36%,transparent 73%,#d8a7671c),repeating-linear-gradient(138deg,transparent 0 24px,#d58f2c07 25px 26px)}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem{left:552px;top:231px;width:112px;height:112px;border-width:3px;box-shadow:0 5px 14px #0605178a,inset 0 0 0 3px #b26a3288,0 0 17px #edba7f9f}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem::after{font-size:53px}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T01"]::after{content:"";background:url("./assets/ticket-t01.svg") center / 130% no-repeat}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T03"]::after{content:"";background:url("./assets/ticket-t03.svg") center / 130% no-repeat}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T04"]::after{content:"";background:url("./assets/ticket-t04.svg") center / 130% no-repeat}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T02"]::after{background-size:134%}

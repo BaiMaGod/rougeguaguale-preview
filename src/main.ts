@@ -121,11 +121,15 @@ function cellLabel(c:TicketCell):string {
 function ticketView():void {
  const t=state.active;if(!t)return;const def=cardDefinition(t.cardId),r=resolveTicket(t);
  const shownAccrued=def.mode==='sum'||def.mode==='ledger'?t.revealed.reduce((sum,i)=>sum+BigInt(t.committedLayout[i].value),0n):r.status==='won'?r.prize:r.accrued;
- panel(42,225,666,908,'#080d1744',32);panel(34,210,682,908,C.paper,32,'#cfb07d');
- panel(34,210,682,166,def.color,30);panel(34,295,682,82,def.color,0);
- text(65,225,def.id+'  /  成语刮刮卡',22,C.ink,580);
- text(65,267,def.name,51,C.ink,580,'left',true);
- text(65,333,'票价 '+money(def.price)+'     基础最高 '+money(def.headlinePrize),22,C.ink,620);
+ const warm=['T02','T07','T15','T16','T18'].includes(def.id),emerald=['T03','T05','T09','T10','T13'].includes(def.id);
+ const shell=warm?'#671b3a':emerald?'#11534e':'#16365f',heading=warm?'#b72e58':emerald?'#196a59':'#226598';
+ panel(42,225,666,908,'#080d1744',32);
+ panel(34,210,682,908,shell,32,'#d3a75d');
+ panel(46,380,658,661,'#f3e3c4',22,'#c6a064');
+ panel(34,210,682,166,heading,30);panel(34,310,682,67,heading,0);
+ text(65,225,def.id+'  /  成语刮刮卡',22,'#fff0c6',580);
+ text(65,267,def.name,51,'#fff3ac',580,'left',true);
+ text(65,333,'票价 '+money(def.price)+'     基础最高 '+money(def.headlinePrize),22,'#fff0c6',620);
  text(66,390,def.rule,25,C.ink,618,'center',true);
  const tool=scratchTool(t.growth?.scratch??0),model=growthModel(t.cardId,t.growth??zeroLevels());
  const hint=text(66,430,(t.boost?'本票强化：'+boostInfo(t.boost).name:def.hint)+'\n'+tool.name+' Lv.'+(t.growth?.scratch??0)+' · 本票奖金 ×'+multiplier(model.bonusBps)+(t.boost==='rise'?'（翻倍后封顶3000元）':''),19,'#6c6d6c',618,'center');hint.wordWrap=true;hint.height=55;
