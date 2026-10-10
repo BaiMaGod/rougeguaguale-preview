@@ -63,9 +63,25 @@ try{
  await page.goto(url);await ready();assert.equal(await page.locator('.idiom-card').count(),18);
  const artImageWidth=await page.evaluate(async()=>new Promise(resolve=>{const img=new Image();img.onload=()=>resolve(img.naturalWidth);img.onerror=()=>resolve(0);img.src='./assets/ticket-t01.svg';}));
  assert.ok(artImageWidth>0,'Card illustration SVG did not render in browser');
+ const allArt=await page.evaluate(async()=>Promise.all(
+  Array.from({length:18},(_,n)=>'T'+String(n+1).padStart(2,'0')).map(id=>
+   new Promise(resolve=>{const image=new Image();image.onload=()=>resolve(image.naturalWidth>0);
+    image.onerror=()=>resolve(false);image.src='./assets/ticket-'+id.toLowerCase()+'.svg';})
+  )
+ ));
+ assert.equal(allArt.filter(Boolean).length,18,'All 18 distinct card artworks must load');
+ console.log('ALL_18_CARD_ART_OK',allArt.length);
  const artworkLayer=await page.locator('.idiom-card').first().evaluate(el=>getComputedStyle(el,'::after').backgroundImage);
  assert.match(artworkLayer,/ticket-t01\.svg/,'Card illustration background missing');console.log('CARD_ART_OK',artImageWidth);
- await shot('mobile-catalog');await page.getByRole('button',{name:'买 一五一十 · 2元',exact:true}).click();
+ await shot('mobile-catalog');
+ const gallery=await context.newPage();await gallery.goto(url+'/?qa=1');
+ await gallery.waitForFunction(()=>document.querySelector('#game-root')?.dataset.screen==='catalog');
+ for(const [name,top] of [['gallery-mid',950],['gallery-late',2200]]){
+   await gallery.locator('.idiom-catalog').evaluate((el,y)=>{el.scrollTop=y;},top);
+   await gallery.screenshot({path:resolve(evidence,name+'.jpg'),type:'jpeg',quality:80});
+ }
+ await gallery.close();
+ await page.getByRole('button',{name:'买 一五一十 · 2元',exact:true}).click();
  assert.equal(await page.locator('#game-root').getAttribute('data-cash'),'58');assert.equal(await page.locator('canvas[data-index]').count(),1);
  await shot('mobile-first-ticket');await scratch(0);
  assert.equal(await page.locator('#foil-particles').getAttribute('data-emissions')==='0',false);checks.push('Real touch scratching, silver dust and purchase deduction');
@@ -138,5 +154,5 @@ try{
  assert.deepEqual(errors,[]);
  console.log(JSON.stringify({checks:checks.length,results:checks,pageErrors:errors},null,2));
  // Small review screenshots also appear in the job log for restricted artifact clients.
- for(const name of ['mobile-catalog','mobile-growth','growth-T14','mobile-T09','mobile-T17','mobile-bankrupt'])console.log('QA_IMAGE '+name+' '+(await readFile(resolve(evidence,name+'.jpg'))).toString('base64'));
+ for(const name of ['mobile-catalog','gallery-mid','gallery-late','mobile-growth','growth-T14','mobile-T09','mobile-T17','mobile-bankrupt'])console.log('QA_IMAGE '+name+' '+(await readFile(resolve(evidence,name+'.jpg'))).toString('base64'));
 }finally{clearTimeout(hardTimeout);await browser.close();server.closeAllConnections();await new Promise(ok=>server.close(ok));}

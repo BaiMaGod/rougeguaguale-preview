@@ -21,6 +21,8 @@ let state:GameState=newGame(crypto.randomUUID()),selected:CardId='T01';
 let scene:any,screen:'catalog'|'ticket'|'records'|'growth'|'machine'|'rebirth'|'build'='catalog',riskDialog=false;
 let rebirthQuote:ReturnType<typeof rebirthPreview>|null=null;
 let notice='',legacyFound=false;
+// One-shot cosmetic state only: never participates in prize resolution or saved game state.
+let revealEffect:{nonce:string;index:number;kind:'reveal'|'win'|'miss'}|null=null;
 let writer=qa,lastSaved='',releaseWriter:(()=>void)|undefined,lastTick=0;
 const controls=document.createElement('div');controls.id='idiom-controls';root.appendChild(controls);
 const money=(n:bigint)=>formatMoney(n)+'元';
@@ -45,7 +47,7 @@ function save():void {
 function update(action:(s:GameState)=>GameState,resetFoil=false):void {
  if(!writer){notice='此页只读：另一个游戏页面正在操作，请先关闭它再刷新。';render();return;}
  try{const next=action(state),fortune=next.progression.earned-state.progression.earned;
-  if(resetFoil)foil.clear();if(next.runBuild.pending&&!state.runBuild.pending)screen='build';
+  if(resetFoil){foil.clear();revealEffect=null;}if(next.runBuild.pending&&!state.runBuild.pending)screen='build';
   const reborn=next.rebirth.count>state.rebirth.count;state=next;notice=fortune>0?(reborn?'改命完成':'首次里程碑达成')+' · 获得 '+fortune+' 福运点':'';save();render();}
  catch(e){notice=e instanceof Error?e.message:String(e);render();}
 }
@@ -73,8 +75,11 @@ function buy():void {
 function onReveal(index:number,nonce:string):void {
  if(state.active?.nonce!==nonce||state.active.settled||machineOwnsTicket(state))return;
  update(s=>{
-  const next=scratchCell(s,index),r=resolveTicket(next.active!);
-  tone(r.status==='won'?'win':r.status==='lost'||r.status==='bankrupt'?'lose':'reveal');
+  const prev=resolveTicket(s.active!),next=scratchCell(s,index),r=resolveTicket(next.active!);
+  const newlyWon=prev.status!=='won'&&r.status==='won';
+  const missed=r.status==='lost'||r.status==='bankrupt';
+  revealEffect={nonce,index,kind:newlyWon?'win':missed?'miss':'reveal'};
+  tone(newlyWon?'win':missed?'lose':'reveal');
   return r.status==='lost'||r.status==='bankrupt'?settleActive(next):next;
  });
 }
@@ -318,9 +323,41 @@ function renderControls():void {
  top.append(actionButton('自动机器',()=>{screen='machine';riskDialog=false;render();},false,screen==='machine'?'active':'secondary'));
  if(screen==='ticket'&&state.active){
     const emblem=box('idiom-ticket-emblem');emblem.dataset.card=state.active.cardId;controls.appendChild(emblem);
+    const watermark=box('idiom-ticket-watermark');watermark.dataset.card=state.active.cardId;
+    watermark.setAttribute('aria-hidden','true');controls.appendChild(watermark);
+    // Burst originates at the actual scratched cell. Consume immediately so unrelated re-renders do not replay it.
+    if(revealEffect?.nonce===state.active.nonce){
+      const effect=revealEffect;revealEffect=null;
+      const slot=slots(state.active.cardId).find(s=>s.index===effect.index);
+      if(slot){
+        const flash=box('idiom-reveal-burst'+(effect.kind==='miss'?' miss':''));
+        flash.style.left=String(slot.x+slot.size/2)+'px';flash.style.top=String(slot.y+slot.size/2)+'px';
+        flash.setAttribute('aria-hidden','true');
+        for(let n=0;n<9;n++){
+          const particle=document.createElement('i'),angle=2*Math.PI*n/9;
+          particle.style.setProperty('--n',String(n));
+          particle.style.setProperty('--dx',String(Math.round(Math.cos(angle)*(60+n%3*17))));
+          particle.style.setProperty('--dy',String(Math.round(Math.sin(angle)*(55+n%3*18))));
+          flash.appendChild(particle);
+        }
+        controls.appendChild(flash);flash.addEventListener('animationend',()=>flash.remove(),{once:true});
+      }
+    }
     const outcome=resolveTicket(state.active);
     if(outcome.status==='won'){
-      const celebrate=box('idiom-win-celebration');p(celebrate,'恭喜中奖 '+money(outcome.prize)+'！');
+      const celebrate=box('idiom-win-celebration');
+      const jackpot=outcome.prize>=cardDefinition(state.active.cardId).headlinePrize;
+      if(jackpot)celebrate.classList.add('jackpot');
+      celebrate.setAttribute('aria-live','polite');
+      p(celebrate,(jackpot?'头奖降临 · ':'恭喜中奖 ')+money(outcome.prize)+'！');
+      for(let i=0;i<12;i++){
+        const coin=box('win-coin'),angle=i*Math.PI/6;
+        coin.setAttribute('aria-hidden','true');
+        coin.style.setProperty('--i',String(i));
+        coin.style.setProperty('--cx',String(Math.round(Math.cos(angle)*(140+i%3*26))));
+        coin.style.setProperty('--cy',String(Math.round(-74-Math.abs(Math.sin(angle))*82-(i%2)*19)));
+        celebrate.appendChild(coin);
+      }
       controls.appendChild(celebrate);
     }
   }
