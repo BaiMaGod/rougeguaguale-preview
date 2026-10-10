@@ -33,10 +33,8 @@ scene=document.createElement('div');scene.className='ticket-print-layer';ticketS
 const money=(n:bigint)=>formatMoney(n)+'元';
 const multiplier=(bps:number)=>(bps/10000).toFixed(4).replace(/0+$/,'').replace(/\.$/,'');
 function sizeToWindow():void {
- const area=controls.querySelector<HTMLElement>('.idiom-worktable'),stage=controls.querySelector<HTMLElement>('.idiom-ticket-stage');
- if(!area||!stage)return;
- const bounds=area.getBoundingClientRect(),scale=Math.min((bounds.width-16)/W,(bounds.height-12)/940);
- stage.style.transform=`translate(-50%,-50%) scale(${Math.max(.1,scale)})`;
+ const bounds=worktable.getBoundingClientRect(),scale=Math.min((bounds.width-16)/W,(bounds.height-12)/940);
+ ticketStage.style.transform=`translate(-50%,-50%) scale(${Math.max(.1,scale)})`;
 }
 function text(x:number,y:number,value:string,size=26,color=C.paper,width=600,align='left',bold=false):any {
  const t=document.createElement('div');t.className='ticket-print';t.textContent=value;
@@ -164,7 +162,8 @@ function ticketView():void {
   const c=t.committedLayout[slot.index],open=t.revealed.includes(slot.index),allowed=canScratch(t,slot.index),dim=!open&&!allowed;
   panel(slot.x-5,slot.y-5,slot.size+10,slot.size+10,open?(c.kind==='bomb'||c.kind==='devil'?'#e9b1a6':'#d2dfc1'):'#e0d2b4',18,'#c4ad7f');
   const color=c.kind==='bomb'||c.kind==='devil'?'#953f3b':c.kind==='heart'||c.kind==='heaven'?'#a77918':C.ink;
-  text(slot.x,slot.y+slot.size*.33,cellLabel(c),slot.size<=105?32:slot.size<200?34:48,color,slot.size,'center',true);
+  const value=text(slot.x,slot.y+slot.size*.33,cellLabel(c),slot.size<=105?32:slot.size<200?34:48,c.kind==='money'?heading:color,slot.size,'center',true);
+  value.setAttribute('aria-hidden',String(!open));
   text(slot.x-10,slot.y+slot.size+7,slot.index===safe?'公开安全':slot.label,18,slot.index===safe?'#39783b':C.ink,slot.size+20,'center');
   if(!open&&!t.settled){
    const nonce=t.nonce;

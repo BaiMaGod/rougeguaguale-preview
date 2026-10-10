@@ -94,3 +94,4 @@ html,body{background:#37271d;color:var(--ink);font-family:"PingFang SC","Microso
 @media(prefers-reduced-motion:reduce){.idiom-win-celebration,.win-coin,.idiom-reveal-burst i{animation:none!important}.idiom-btn{transition:none}.win-coin,.idiom-reveal-burst{display:none}}
 #game-root[data-screen='ticket'] .idiom-footer{bottom:65px}
 @media(max-width:760px){#game-root[data-screen='ticket'] .idiom-footer{bottom:66px}}
+.idiom-card::before{height:auto;background:none}
