@@ -13,6 +13,11 @@ async function exercise(b,profile){
  page.on('pageerror',e=>errors.push(profile.name+': '+e.message));page.on('console',m=>{if(m.type()==='error')errors.push(profile.name+': '+m.text());});page.on('response',r=>{if(r.status()>=400)errors.push(profile.name+': HTTP '+r.status()+' '+r.url());});page.on('requestfailed',r=>errors.push(profile.name+': '+r.failure()?.errorText+' '+r.url()));
  await page.goto(url);await page.waitForFunction(()=>document.querySelector('#game-root')?.dataset.screen==='catalog');
  assert.equal(await page.locator('#load-error').isVisible(),false);
+ const frame=await page.locator('#game-root').boundingBox(),view=profile.options.viewport;
+ assert.ok(frame.width<=Math.min(view.width,view.height*9/16)+1&&frame.height>frame.width,'All viewports retain the portrait frame');
+ assert.ok(Math.abs(frame.x-(view.width-frame.width)/2)<1,'Portrait frame is centered');
+ assert.ok(frame.y>=-1&&frame.x>=-1&&frame.x+frame.width<=view.width+1&&frame.y+frame.height<=view.height+1,'Portrait frame fits viewport');
+ assert.equal(await page.locator('.idiom-quick-growth').isVisible(),false);
  if(profile.fallback)assert.equal(await page.locator('#game-root').getAttribute('data-renderer'),'canvas2d');
  const art=await page.evaluate(async()=>Promise.all(['lottery-counter-v34.webp','ticket-vignette-v34.webp'].map(n=>new Promise(ok=>{const i=new Image();i.onload=()=>ok(i.naturalWidth>0);i.onerror=()=>ok(false);i.src='./assets/'+n;}))));assert.deepEqual(art,[true,true]);
  await page.screenshot({path:resolve(out,profile.name+'-catalog.png')});
@@ -40,11 +45,11 @@ async function exercise(b,profile){
  for(const [name,button] of [['growth','永久成长'],['machine','自动机器'],['records','刮奖记录']]){await page.getByRole('button',{name:button,exact:true}).click();await page.screenshot({path:resolve(out,profile.name+'-'+name+'.png')});assert.equal(await page.locator('.idiom-catalog').evaluate(e=>e.scrollWidth<=e.clientWidth+1),true);}
  const nav=await page.locator('.idiom-top').boundingBox(),footer=await page.locator('.idiom-footer').boundingBox();assert.ok(footer.y+footer.height<=nav.y+1||footer.y>=nav.y+nav.height-1,'Footer must not obstruct navigation');
  const p95=await page.evaluate(()=>new Promise(ok=>{let last=performance.now();const times=[];function sample(t){times.push(t-last);last=t;if(times.length<180)requestAnimationFrame(sample);else ok(times.sort((a,b)=>a-b)[Math.floor(times.length*.95)]);}requestAnimationFrame(sample);}));assert.ok(p95<40,'Frame p95 '+p95+'ms exceeds budget');
- results.push({profile:profile.name,renderer:await page.locator('#game-root').getAttribute('data-renderer'),purchase:true,realScratch:true,settlement:true,replay:true,reload:true,assets:true,p95});
+ results.push({profile:profile.name,portrait:true,frame:{width:frame.width,height:frame.height},renderer:await page.locator('#game-root').getAttribute('data-renderer'),purchase:true,realScratch:true,settlement:true,replay:true,reload:true,assets:true,p95});
  await context.close();
 }
 try{
- for(const profile of [{name:'desktop',options:{viewport:{width:1440,height:900},deviceScaleFactor:1}},{name:'tablet',options:{viewport:{width:768,height:1024},deviceScaleFactor:2,isMobile:true,hasTouch:true}},{name:'mobile',options:{viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true}},{name:'narrow',options:{viewport:{width:320,height:640},deviceScaleFactor:2,isMobile:true,hasTouch:true}}])await exercise(browser,profile);
+ for(const profile of [{name:'desktop',options:{viewport:{width:1440,height:900},deviceScaleFactor:1}},{name:'tablet',options:{viewport:{width:768,height:1024},deviceScaleFactor:2,isMobile:true,hasTouch:true}},{name:'mobile',options:{viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true}},{name:'narrow',options:{viewport:{width:320,height:640},deviceScaleFactor:2,isMobile:true,hasTouch:true}},{name:'landscape',options:{viewport:{width:844,height:390},deviceScaleFactor:2,isMobile:true,hasTouch:true}}])await exercise(browser,profile);
  const fallback=await chromium.launch({args:['--no-sandbox','--disable-webgl']});try{await exercise(fallback,{name:'canvas-fallback',fallback:true,options:{viewport:{width:1440,height:900}}});}finally{await fallback.close();}
  assert.deepEqual(errors,[]);await writeFile(resolve(out,'report.json'),JSON.stringify({results,errors},null,2));console.log('ART_QA_REPORT '+JSON.stringify({results,errors}));
  for(const name of ['desktop-catalog','desktop-ticket','mobile-ticket'])console.log('ART_QA_IMAGE '+name+' '+(await readFile(resolve(out,name+'.png'))).toString('base64'));

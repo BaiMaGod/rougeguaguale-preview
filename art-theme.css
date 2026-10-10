@@ -1,7 +1,8 @@
 /* V3.4 — a tangible lottery counter, with live HTML print and Canvas2D foil. */
 :root{color-scheme:light;--paper:#f4e8d0;--ink:#433a2d;--teal:#214f4e;--red:#a64a3c;--brass:#b59759}
-html,body{background:#37271d;color:var(--ink);font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif}
-#game-root{inset:0!important;width:100%!important;height:100%!important;transform:none!important;background:#765338 url('./assets/lottery-counter-v34.webp') center/cover no-repeat;isolation:isolate}
+html,body{background:#183936;color:var(--ink);font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+body{background:radial-gradient(ellipse at center,#365b51,#122c2a 80%)}
+#game-root{inset:0 auto auto 50%!important;width:min(100%,56.25vh)!important;width:min(100%,56.25dvh)!important;height:100%!important;transform:translateX(-50%)!important;background:#765338 url('./assets/lottery-counter-v34.webp') 48% center/cover no-repeat;isolation:isolate;container-type:inline-size;box-shadow:0 0 0 1px #b5975955,0 0 70px #091c1bcc}
 #idiom-controls{z-index:30;font-family:inherit;color:var(--ink)}
 .idiom-masthead{position:absolute;inset:0 0 auto;height:76px;background:var(--paper);border-bottom:3px solid #8b6d48;box-shadow:0 3px 16px #24180d33;display:flex;align-items:center;gap:18px;padding:12px 28px;pointer-events:none}
 .idiom-sign{display:flex;align-items:center;gap:15px;white-space:nowrap}
@@ -72,9 +73,8 @@ html,body{background:#37271d;color:var(--ink);font-family:"PingFang SC","Microso
 .idiom-win-celebration{position:absolute;left:75px;right:75px;top:842px;min-height:54px;z-index:20;background:#214f4e;border:2px solid #b89a64;border-radius:8px;color:#fff0d5;pointer-events:none;animation:win-pop .3s ease-out both;box-shadow:0 4px 7px #634b3d55}.idiom-win-celebration p{font-size:25px;line-height:1.3;text-align:center;margin:11px 5px;font-weight:800}.idiom-win-celebration.jackpot{background:#994c3b}.win-coin{position:absolute;bottom:14px;left:50%;width:21px;height:21px;border-radius:50%;background:#cbab61;border:2px solid #f7dda2;animation:coin-fly 1s ease-out both;animation-delay:calc(var(--i)*35ms)}
 .idiom-reveal-burst{position:absolute;z-index:15;pointer-events:none}.idiom-reveal-burst i{position:absolute;width:9px;height:9px;background:#d9be78;animation:reveal-spark .6s ease-out both}.idiom-reveal-burst.miss i{background:#a78470}
 @keyframes win-pop{from{opacity:0;transform:translateY(8px) scale(.95)}to{opacity:1;transform:none}}@keyframes coin-fly{0%{opacity:0;transform:scale(.5)}15%{opacity:1}100%{opacity:0;transform:translate(calc(var(--cx)*1px),calc(var(--cy)*1px)) rotate(180deg)}}@keyframes reveal-spark{from{opacity:1;transform:scale(.5)}to{opacity:0;transform:translate(calc(var(--dx)*1px),calc(var(--dy)*1px)) rotate(110deg)}}
-@media(max-width:1100px) and (min-width:761px){.idiom-catalog,.idiom-quick-growth{width:218px}.idiom-catalog{left:14px}.idiom-quick-growth{right:14px}.idiom-worktable{left:234px;right:234px}.idiom-sign-subtitle,.idiom-version-tag,.idiom-resource-label{display:none}.idiom-card{padding-left:64px}.idiom-card::after{width:48px}.idiom-card .idiom-card-name{font-size:17px}.idiom-quick-growth{padding-left:12px;padding-right:12px}.idiom-wallet-bar{gap:15px}.idiom-sign-title{font-size:27px}}
-@media(max-width:760px), (max-width:980px) and (min-height:700px){
- #game-root{background-position:48% center}.idiom-masthead{height:88px;padding:10px 15px;display:block}.idiom-sign{gap:7px;height:28px}.idiom-sign::before{font-size:22px}.idiom-sign-title{font-size:24px;letter-spacing:2px}.idiom-sign-subtitle{font-size:11px;padding-left:8px}.idiom-version-tag{display:none}.idiom-wallet-bar{position:absolute;left:15px;right:15px;bottom:8px;justify-content:space-between;gap:6px}.idiom-resource{gap:5px}.idiom-resource::before{font-size:20px}.idiom-resource.fortune::before,.idiom-resource.progress::before{font-size:18px}.idiom-resource-label{font-size:10px}.idiom-resource-value{font-size:19px}
+/* One portrait composition at every viewport width. */
+ .idiom-masthead{height:88px;padding:10px 15px;display:block}.idiom-sign{gap:7px;height:28px}.idiom-sign::before{font-size:22px}.idiom-sign-title{font-size:24px;letter-spacing:2px}.idiom-sign-subtitle{font-size:11px;padding-left:8px}.idiom-version-tag{display:none}.idiom-wallet-bar{position:absolute;left:15px;right:15px;bottom:8px;justify-content:space-between;gap:6px}.idiom-resource{gap:5px}.idiom-resource::before{font-size:20px}.idiom-resource.fortune::before,.idiom-resource.progress::before{font-size:18px}.idiom-resource-label{font-size:10px}.idiom-resource-value{font-size:19px}
  .idiom-top{left:10px;right:10px;width:auto;bottom:max(12px,env(safe-area-inset-bottom));gap:4px}.idiom-top .idiom-btn{font-size:11px;min-height:39px;white-space:normal;padding:6px 2px}.idiom-footer{left:14px;right:14px;width:auto;bottom:66px;min-height:83px!important}.idiom-footer .idiom-btn{font-size:19px!important;min-height:48px!important}.idiom-footer p{font-size:11px!important;max-height:38px;overflow:auto}
  .idiom-worktable{left:0;right:0;top:102px;bottom:160px}.idiom-quick-growth{display:none}
  #game-root[data-screen='catalog'] .idiom-worktable{bottom:323px}
@@ -89,11 +89,8 @@ html,body{background:#37271d;color:var(--ink);font-family:"PingFang SC","Microso
  #game-root[data-screen='ticket'] .idiom-catalog{display:none}
  #game-root:not([data-screen='catalog']):not([data-screen='ticket']) .idiom-catalog{width:calc(100% - 24px);top:104px;bottom:163px;padding:18px 15px}
  .idiom-catalog p{font-size:14px}.idiom-title{font-size:25px!important}.idiom-tech,.idiom-receipt{padding:13px;margin:12px 0}.idiom-machine-form{gap:9px;padding:13px}.idiom-machine-form label{font-size:11px}.idiom-machine-form input,.idiom-machine-form select{font-size:14px;min-height:40px}.idiom-dialog{padding:20px}.idiom-dialog p{font-size:14px}.idiom-modal{padding:20px}.idiom-growth-tabs .idiom-btn{font-size:12px;padding:7px 3px}.idiom-tech-name{font-size:17px!important}.idiom-reset-table{font-size:11px}.idiom-reset-table th,.idiom-reset-table td{padding:8px}
-}
-@media(max-height:630px) and (min-width:761px){.idiom-quick-growth{padding-top:17px}.quick-tech{min-height:48px;padding-top:6px;padding-bottom:6px}.quick-tech::before{top:7px;font-size:27px}.quick-tech::after{top:10px}.quick-machine{margin-top:8px}.quick-subtitle{margin:2px 0 8px}.idiom-worktable{top:82px;bottom:135px}.idiom-footer{bottom:53px}.idiom-top{bottom:7px}}
 @media(prefers-reduced-motion:reduce){.idiom-win-celebration,.win-coin,.idiom-reveal-burst i{animation:none!important}.idiom-btn{transition:none}.win-coin,.idiom-reveal-burst{display:none}}
-#game-root[data-screen='ticket'] .idiom-footer{bottom:65px}
-@media(max-width:760px), (max-width:980px) and (min-height:700px){#game-root[data-screen='ticket'] .idiom-footer{bottom:66px}}
+#game-root[data-screen='ticket'] .idiom-footer{bottom:66px}
 .idiom-card::before{height:auto;background:none}
 /* Final concept comparison pass: stronger printed hierarchy, lighter side catalogue. */
 .idiom-intro .idiom-title{color:#fff0d5!important;font-size:25px!important;letter-spacing:4px}
@@ -101,3 +98,19 @@ html,body{background:#37271d;color:var(--ink);font-family:"PingFang SC","Microso
 .ticket-print.ticket-name{font-family:'STKaiti','KaiTi','Noto Serif CJK SC','Songti SC',serif;letter-spacing:5px;font-weight:900}
 .ticket-inner-frame{background-image:repeating-radial-gradient(ellipse at 20% 82%,transparent 0 11px,#a64a3c08 11px 12px,transparent 12px 24px)}
 .ticket-vignette{top:930px;left:124px;width:500px;height:126px}
+@container(max-width:300px){.idiom-sign-subtitle,.idiom-resource-label{display:none}.idiom-sign-title{font-size:21px}.idiom-resource-value{font-size:15px}.idiom-resource::before{font-size:16px}.idiom-wallet-bar{left:10px;right:10px}}
+@media(max-height:550px){
+ .idiom-masthead{height:58px;padding:5px 10px}.idiom-sign{height:23px}.idiom-sign-title{font-size:19px}.idiom-sign::before{font-size:18px}.idiom-sign-subtitle{display:none}.idiom-wallet-bar{bottom:4px}.idiom-resource-value{font-size:14px}.idiom-resource-label{display:none}.idiom-resource::before{font-size:15px}
+ .idiom-top{left:6px;right:6px;bottom:6px;gap:3px}.idiom-top .idiom-btn{min-height:32px;font-size:9px;padding:4px 1px}
+ .idiom-footer,#game-root[data-screen='ticket'] .idiom-footer{left:9px;right:9px;bottom:47px;min-height:64px!important}.idiom-footer p{font-size:10px!important;max-height:26px;padding:3px 6px}.idiom-footer .idiom-btn{font-size:14px!important;min-height:34px!important;padding:5px 8px!important}
+ .idiom-worktable{top:70px;bottom:124px}
+ #game-root[data-screen='catalog'] .idiom-worktable{bottom:225px}
+ #game-root[data-screen='catalog'] .idiom-catalog{left:6px;right:6px;bottom:123px;height:94px;padding:5px}
+ #game-root[data-screen='catalog'] .idiom-card{min-height:78px;width:139px;padding:5px 6px 5px 53px}
+ #game-root[data-screen='catalog'] .idiom-card::after{top:19px;width:42px;height:43px}
+ #game-root[data-screen='catalog'] .idiom-card .idiom-card-name{font-size:15px}
+ #game-root[data-screen='catalog'] .idiom-card .idiom-price{font-size:11px}
+ #game-root:not([data-screen='catalog']):not([data-screen='ticket']) .idiom-catalog{top:70px;bottom:124px;padding:10px 8px}
+ .idiom-growth-tabs{gap:3px}.idiom-growth-tabs .idiom-btn{font-size:10px;padding:6px 1px}.idiom-tech,.idiom-receipt{padding:10px 8px}.idiom-machine-form{padding:9px;gap:6px}.idiom-reset-table th,.idiom-reset-table td{padding:5px}
+}
+@media(orientation:landscape) and (max-height:550px) and (pointer:coarse){body::after{content:'竖屏体验更好 · 请将手机转为竖屏';position:fixed;left:12px;top:16px;width:min(220px,calc(50% - 125px));font-size:14px;line-height:1.6;color:#e7dbbd;pointer-events:none}}
