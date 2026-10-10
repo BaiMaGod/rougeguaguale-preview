@@ -43,7 +43,7 @@ async function exercise(b,profile){
  await context.close();
 }
 try{
- for(const profile of [{name:'desktop',options:{viewport:{width:1440,height:900},deviceScaleFactor:1}},{name:'mobile',options:{viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true}},{name:'narrow',options:{viewport:{width:320,height:640},deviceScaleFactor:2,isMobile:true,hasTouch:true}}])await exercise(browser,profile);
+ for(const profile of [{name:'desktop',options:{viewport:{width:1440,height:900},deviceScaleFactor:1}},{name:'tablet',options:{viewport:{width:768,height:1024},deviceScaleFactor:2,isMobile:true,hasTouch:true}},{name:'mobile',options:{viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true}},{name:'narrow',options:{viewport:{width:320,height:640},deviceScaleFactor:2,isMobile:true,hasTouch:true}}])await exercise(browser,profile);
  const fallback=await chromium.launch({args:['--no-sandbox','--disable-webgl']});try{await exercise(fallback,{name:'canvas-fallback',fallback:true,options:{viewport:{width:1440,height:900}}});}finally{await fallback.close();}
  assert.deepEqual(errors,[]);await writeFile(resolve(out,'report.json'),JSON.stringify({results,errors},null,2));console.log('ART_QA_REPORT '+JSON.stringify({results,errors}));
  for(const name of ['desktop-catalog','desktop-ticket','mobile-ticket'])console.log('ART_QA_IMAGE '+name+' '+(await readFile(resolve(out,name+'.png'))).toString('base64'));
