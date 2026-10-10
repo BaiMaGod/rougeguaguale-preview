@@ -164,8 +164,8 @@ function ticketView():void {
   }
  }
  if(r.status!=='playing'&&r.status!=='won'){
-  panel(64,1056,622,47,r.status==='won'?'#dfd9ad':r.status==='bankrupt'?'#e8b7a7':'#e4d9c1',12);
-  text(76,1058,r.status==='won'?'中奖 '+money(r.prize)+(t.settled?' · 已到账':' · 待领取'):r.message,25,r.status==='bankrupt'?'#963f35':C.ink,598,'center',true);
+  panel(64,1056,622,47,r.status==='bankrupt'?'#e8b7a7':'#e4d9c1',12);
+  text(76,1058,r.message,25,r.status==='bankrupt'?'#963f35':C.ink,598,'center',true);
  }
  root.dataset.card=t.cardId;root.dataset.status=r.status;root.dataset.settled=String(t.settled);
 }
