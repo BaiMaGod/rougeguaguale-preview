@@ -1,0 +1,402 @@
+const DESIGN_W = 750, DESIGN_H = 1334;
+const FOIL_RATIO = 1.5;
+const BRUSH = 30;
+const FINISH_PERCENT = .52;
+const PARTICLE_LIMIT = 200;
+const SILVERS = ['#ecf1fa', '#d6e1ee', '#b3c1d2', '#8493aa', '#f8fbff', '#99a8bf'];
+function coating(size) {
+    const pixels = Math.round(size * FOIL_RATIO);
+    const cv = document.createElement('canvas');
+    cv.width = pixels;
+    cv.height = pixels;
+    const ctx = cv.getContext('2d');
+    if (!ctx)
+        throw new Error('Canvas2D coating unavailable');
+    const data = ctx.createImageData(pixels, pixels);
+    let rand = 0x935f1b7;
+    const random = () => { rand = (Math.imul(rand, 1664525) + 1013904223) >>> 0; return rand / 4294967296; };
+    for (let y = 0; y < pixels; y++) {
+        for (let x = 0; x < pixels; x++) {
+            const n = random() - .5;
+            // Brushed aluminum: broad diagonal illumination, fine unaligned grain,
+            // irregular pale and dark specks, and faint horizontal machine strokes.
+            const beam = 16 * Math.cos((x + y * .44 - pixels * .7) * .024);
+            const brushing = 5 * Math.sin(y * .73 + x * .035) + 3 * Math.sin(y * 1.8);
+            const fleck = random();
+            const l = Math.max(83, Math.min(245, 175 + beam + brushing + n * 35 + (fleck > .983 ? 29 : 0) - (fleck < .018 ? 24 : 0)));
+            const i = (y * pixels + x) * 4;
+            data.data[i] = Math.floor(l - 3);
+            data.data[i + 1] = Math.floor(l + 2);
+            data.data[i + 2] = Math.floor(Math.min(255, l + 12));
+            data.data[i + 3] = 255;
+        }
+    }
+    ctx.putImageData(data, 0, 0);
+    ctx.save();
+    ctx.scale(FOIL_RATIO, FOIL_RATIO);
+    const sheen = ctx.createLinearGradient(0, size * .72, size, size * .1);
+    sheen.addColorStop(0, 'rgba(255,255,255,0)');
+    sheen.addColorStop(.38, 'rgba(255,255,255,.03)');
+    sheen.addColorStop(.51, 'rgba(255,255,255,.3)');
+    sheen.addColorStop(.60, 'rgba(255,255,255,.025)');
+    sheen.addColorStop(1, 'rgba(37,53,75,.20)');
+    ctx.fillStyle = sheen;
+    ctx.fillRect(0, 0, size, size);
+    ctx.lineWidth = .5;
+    for (let k = 4; k < size; k += 9) {
+        ctx.strokeStyle = k % 3 ? 'rgba(255,255,255,.095)' : 'rgba(31,46,67,.065)';
+        ctx.beginPath();
+        ctx.moveTo(0, k + .5);
+        ctx.lineTo(size, k + .5);
+        ctx.stroke();
+    }
+    ctx.restore();
+    return cv;
+}
+class ScratchSound {
+    ctx = null;
+    buffer = null;
+    current = null;
+    start() {
+        try {
+            this.stop();
+            this.ctx ??= new AudioContext();
+            if (this.ctx.state === 'suspended')
+                void this.ctx.resume().catch(() => { });
+            if (!this.buffer) {
+                const len = Math.floor(this.ctx.sampleRate * .22);
+                this.buffer = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+                const samples = this.buffer.getChannelData(0);
+                for (let i = 0; i < len; i++)
+                    samples[i] = (Math.random() * 2 - 1) * .8;
+            }
+            const source = this.ctx.createBufferSource();
+            source.buffer = this.buffer;
+            source.loop = true;
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.value = 1650;
+            filter.Q.value = .75;
+            const gain = this.ctx.createGain();
+            gain.gain.value = .001;
+            source.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ctx.destination);
+            source.start();
+            this.current = { source, gain };
+        }
+        catch { /* unavailable audio must not block scratching */ }
+    }
+    move(distance) {
+        if (!this.ctx || !this.current)
+            return;
+        const now = this.ctx.currentTime;
+        this.current.gain.gain.setTargetAtTime(Math.min(.040, .010 + distance * .00065), now, .035);
+    }
+    stop() {
+        if (!this.current || !this.ctx)
+            return;
+        const { source, gain } = this.current;
+        this.current = null;
+        const t = this.ctx.currentTime;
+        gain.gain.cancelScheduledValues(t);
+        gain.gain.setTargetAtTime(.0001, t, .022);
+        try {
+            source.stop(t + .13);
+        }
+        catch { /* already stopped */ }
+    }
+}
+export class ScratchLayer {
+    holder;
+    cells = new Map();
+    seen = new Set();
+    completed = new Set();
+    epoch = 0;
+    foilTextures = new Map();
+    dust = [];
+    fx;
+    fxContext;
+    raf = 0;
+    audio = new ScratchSound();
+    emissions = 0;
+    constructor(holder) {
+        this.holder = holder;
+        this.fx = document.createElement('canvas');
+        this.fx.width = DESIGN_W;
+        this.fx.height = DESIGN_H;
+        this.fx.id = 'foil-particles';
+        this.fx.style.cssText = 'position:absolute;inset:0;width:750px;height:1334px;z-index:99;pointer-events:none;';
+        this.fx.dataset.emissions = '0';
+        const ctx = this.fx.getContext('2d');
+        if (!ctx)
+            throw new Error('Cannot create particle canvas');
+        this.fxContext = ctx;
+        this.holder.appendChild(this.fx);
+    }
+    /** Keep unfinished cells and their erased pixels across score/UI redraws. */
+    beginFrame() { this.seen.clear(); }
+    endFrame() {
+        for (const [index, cv] of this.cells) {
+            if (!this.seen.has(index)) {
+                cv.remove();
+                this.cells.delete(index);
+            }
+        }
+    }
+    /** New ticket only; reset foil coverage and cancel stale reveal callbacks. */
+    clear() {
+        this.epoch++;
+        this.audio.stop();
+        this.seen.clear();
+        this.completed.clear();
+        for (const canvas of this.cells.values())
+            canvas.remove();
+        this.cells.clear();
+        this.dust = [];
+        this.fxContext.clearRect(0, 0, DESIGN_W, DESIGN_H);
+        if (this.raf) {
+            cancelAnimationFrame(this.raf);
+            this.raf = 0;
+        }
+        this.emissions = 0;
+        this.fx.dataset.emissions = '0';
+    }
+    add({ index, x, y, size, onFinished, canStart, onStarted, shape, brushWidth = BRUSH }) {
+        this.seen.add(index);
+        if (this.cells.has(index))
+            return;
+        if (!this.foilTextures.has(size))
+            this.foilTextures.set(size, coating(size));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(size * FOIL_RATIO);
+        canvas.height = Math.round(size * FOIL_RATIO);
+        canvas.dataset.index = String(index);
+        canvas.dataset.material = 'silver-grain-v3-luck';
+        canvas.dataset.coverage = '0';
+        const brush = Math.max(BRUSH, Math.min(48, brushWidth));
+        canvas.dataset.brushWidth = String(brush);
+        canvas.style.cssText = 'position:absolute;left:' + x + 'px;top:' + y + 'px;width:' + size + 'px;height:' + size + 'px;touch-action:none;border-radius:15px;cursor:crosshair;overflow:hidden;';
+        if (shape === 'heart')
+            canvas.style.clipPath = 'polygon(50% 94%,8% 53%,2% 32%,9% 15%,25% 7%,40% 12%,50% 24%,60% 12%,75% 7%,91% 15%,98% 32%,92% 53%)';
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx)
+            throw new Error('Cannot create foil canvas');
+        ctx.drawImage(this.foilTextures.get(size), 0, 0, canvas.width, canvas.height);
+        ctx.scale(FOIL_RATIO, FOIL_RATIO);
+        // Foil: Chinese engraved ink stamp, delicate edge tooling and subtle specular embossing.
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const label = '刮开有喜';
+        ctx.font = 'bold ' + (size <= 110 ? 15 : size <= 175 ? 19 : 25) + 'px "Microsoft YaHei",serif';
+        ctx.fillStyle = 'rgba(45,60,83,.44)';
+        ctx.fillText(label, size / 2, size / 2 + 1.4);
+        ctx.fillStyle = 'rgba(252,252,252,.59)';
+        ctx.fillText(label, size / 2, size / 2 - .8);
+        ctx.strokeStyle = 'rgba(248,250,255,.24)';
+        ctx.lineWidth = 1.2;
+        ctx.strokeRect(6, 6, size - 12, size - 12);
+        ctx.strokeStyle = 'rgba(52,73,99,.24)';
+        ctx.strokeRect(8, 8, size - 16, size - 16);
+        for (const px of [15, size - 15]) {
+            for (const py of [15, size - 15]) {
+                ctx.save();
+                ctx.translate(px, py);
+                ctx.rotate(Math.PI / 4);
+                ctx.fillStyle = 'rgba(248,251,254,.48)';
+                ctx.fillRect(-3, -3, 6, 6);
+                ctx.restore();
+            }
+        }
+        let down = false, prior = null, lastSample = 0;
+        const epoch = this.epoch;
+        const where = (event) => {
+            const r = canvas.getBoundingClientRect();
+            return { x: (event.clientX - r.left) * size / r.width, y: (event.clientY - r.top) * size / r.height };
+        };
+        const erase = (a, b) => {
+            const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy);
+            if (dist < .01)
+                return;
+            ctx.save();
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = brush;
+            ctx.strokeStyle = '#000';
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+            const steps = Math.min(30, Math.ceil(dist / 7));
+            const nx = -dy / dist, ny = dx / dist;
+            for (let i = 0; i <= steps; i++) {
+                const t = i / Math.max(1, steps);
+                const cx = a.x + dx * t, cy = a.y + dy * t;
+                if (i % 2 === 0) {
+                    // Scalloped, uneven edge instead of one perfectly straight soft line.
+                    const side = i % 4 === 0 ? 1 : -1;
+                    const offset = (brush * .44) + (Math.random() * 5);
+                    ctx.beginPath();
+                    ctx.arc(cx + nx * offset * side, cy + ny * offset * side, 1.2 + Math.random() * 2.6, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+            ctx.restore();
+            const emitSteps = Math.min(12, Math.max(1, Math.floor(dist / 6)));
+            for (let i = 0; i < emitSteps; i++) {
+                const t = (i + .5) / emitSteps;
+                const bx = a.x + dx * t, by = a.y + dy * t;
+                this.emit(x + bx, y + by, dx / dist, dy / dist, 2 + (i % 2));
+            }
+            this.audio.move(dist);
+            const now = performance.now();
+            if (now - lastSample > 95) {
+                lastSample = now;
+                measure();
+            }
+        };
+        const measure = () => {
+            const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            let exposed = 0, total = 0;
+            for (let py = 4; py < canvas.height - 3; py += 6) {
+                for (let px = 4; px < canvas.width - 3; px += 6) {
+                    total++;
+                    if (data[(py * canvas.width + px) * 4 + 3] < 72)
+                        exposed++;
+                }
+            }
+            const value = total ? exposed / total : 0;
+            canvas.dataset.coverage = value.toFixed(3);
+            return value;
+        };
+        const finish = () => {
+            if (!down)
+                return;
+            down = false;
+            prior = null;
+            this.audio.stop();
+            if (measure() < FINISH_PERCENT)
+                return;
+            if (this.completed.has(index))
+                return;
+            this.completed.add(index);
+            canvas.style.pointerEvents = 'none';
+            canvas.style.transition = 'opacity 170ms ease-out,filter 170ms ease-out,transform 170ms ease-out';
+            canvas.style.opacity = '0';
+            canvas.style.filter = 'brightness(1.35)';
+            canvas.style.transform = 'scale(1.03)';
+            this.emit(x + size / 2, y + size / 2, 0, -1, 23);
+            // Wait for the foil to fade before allowing the game's existing reveal logic.
+            window.setTimeout(() => {
+                if (this.epoch !== epoch)
+                    return;
+                this.cells.delete(index);
+                canvas.remove();
+                onFinished(index);
+            }, 175);
+        };
+        canvas.addEventListener('pointerdown', e => {
+            if (this.completed.has(index) || canStart && !canStart())
+                return;
+            onStarted?.(index);
+            e.preventDefault();
+            down = true;
+            prior = where(e);
+            canvas.setPointerCapture(e.pointerId);
+            this.audio.start();
+            // Initial pressure mark should be visible, but clicking alone reveals little.
+            ctx.save();
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.beginPath();
+            ctx.arc(prior.x, prior.y, brush * .38, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            this.emit(x + prior.x, y + prior.y, 0, -1, 3);
+        });
+        canvas.addEventListener('pointermove', e => {
+            if (!down || !prior)
+                return;
+            e.preventDefault();
+            const p = where(e);
+            erase(prior, p);
+            prior = p;
+        });
+        canvas.addEventListener('pointerup', finish);
+        canvas.addEventListener('pointercancel', () => { down = false; prior = null; this.audio.stop(); });
+        canvas.addEventListener('lostpointercapture', finish);
+        this.holder.appendChild(canvas);
+        this.cells.set(index, canvas);
+    }
+    reveal(index) {
+        const cell = this.cells.get(index);
+        if (cell)
+            cell.style.opacity = '.45';
+    }
+    setEnabled(enabled) {
+        for (const [index, el] of this.cells)
+            el.style.pointerEvents = enabled && !this.completed.has(index) ? 'auto' : 'none';
+    }
+    setCellEnabled(index, enabled) {
+        const el = this.cells.get(index);
+        if (el)
+            el.style.pointerEvents = enabled && !this.completed.has(index) ? 'auto' : 'none';
+    }
+    emit(x, y, dx, dy, count) {
+        const nx = -dy, ny = dx;
+        for (let i = 0; i < count; i++) {
+            if (this.dust.length >= PARTICLE_LIMIT)
+                this.dust.shift();
+            const side = (Math.random() - .5) * 2;
+            const speed = 1.4 + Math.random() * 4.2;
+            this.dust.push({
+                x: x + (Math.random() - .5) * 9, y: y + (Math.random() - .5) * 9,
+                vx: dx * (.35 + Math.random() * 1.5) + nx * side * speed,
+                vy: dy * (.35 + Math.random()) + ny * side * speed - 1.5,
+                age: 0, life: 14 + Math.floor(Math.random() * 16),
+                size: .8 + Math.random() * 3.2, angle: Math.random() * 6.283,
+                spin: (Math.random() - .5) * .33,
+                color: SILVERS[Math.floor(Math.random() * SILVERS.length)]
+            });
+            this.emissions++;
+        }
+        this.fx.dataset.emissions = String(this.emissions);
+        if (!this.raf)
+            this.raf = requestAnimationFrame(() => this.tick());
+    }
+    tick() {
+        this.raf = 0;
+        const ctx = this.fxContext;
+        ctx.clearRect(0, 0, DESIGN_W, DESIGN_H);
+        this.dust = this.dust.filter(p => {
+            p.age++;
+            if (p.age >= p.life)
+                return false;
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += .19;
+            p.vx *= .975;
+            const a = (1 - p.age / p.life) * .85;
+            ctx.save();
+            ctx.globalAlpha = a;
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.angle += p.spin);
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            if (p.size > 2.5) {
+                ctx.moveTo(-p.size, 0);
+                ctx.lineTo(p.size * .9, -p.size * .45);
+                ctx.lineTo(p.size * .5, p.size * .6);
+                ctx.closePath();
+            }
+            else {
+                ctx.rect(-p.size / 2, -p.size / 2, p.size, p.size * .62);
+            }
+            ctx.fill();
+            ctx.restore();
+            return true;
+        });
+        if (this.dust.length)
+            this.raf = requestAnimationFrame(() => this.tick());
+    }
+}
