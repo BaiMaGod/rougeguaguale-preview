@@ -18,6 +18,7 @@ async function exercise(b,profile){
  await page.screenshot({path:resolve(out,profile.name+'-catalog.png')});
  await page.getByRole('button',{name:'买 一五一十 · 2元',exact:true}).click();assert.equal(await page.locator('#game-root').getAttribute('data-cash'),'58');
  const foil=page.locator('canvas[data-index="0"]'),box=await foil.boundingBox();assert.ok(box&&box.width>60,'Foil remains usable');
+ if(profile.name==='tablet')assert.ok(box.width>200,'Portrait tablet must give the central scratch area enough space');
  assert.equal(await foil.evaluate(e=>e.getRootNode().querySelector('.idiom-ticket-stage').contains(e)),true);
  await page.screenshot({path:resolve(out,profile.name+'-ticket.png')});
  const designSize=await foil.evaluate(e=>parseFloat(e.style.width));const step=box.width*20/designSize;
