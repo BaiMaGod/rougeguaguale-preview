@@ -130,6 +130,10 @@ try{
   for(const i of indices){if(await page.locator('#game-root').getAttribute('data-status')!=='playing')break;await scratch(i);
    if(def.mode==='cashout'&&i===2){await page.getByRole('button',{name:/现在收手/}).click();break;}}
   assert.equal(await page.locator('#game-root').getAttribute('data-status'),'won',def.id+' did not win');
+  assert.equal(await page.locator('.idiom-win-celebration').count(),1,'Win banner should appear');
+  const prizeBar=await page.locator('.idiom-win-celebration').boundingBox();
+  const navRow=await page.locator('.idiom-top').boundingBox();
+  assert.ok(prizeBar&&navRow&&prizeBar.y+prizeBar.height<=navRow.y+1,def.id+' prize overlay blocks nav');
   if(await page.locator('#game-root').getAttribute('data-settled')!=='true')await page.getByRole('button',{name:/^领取 /}).click();
   const expected=stateFor(t).cash+finish(t).prize;assert.equal(await page.locator('#game-root').getAttribute('data-cash'),expected.toString(),def.id+' payout');
   await page.reload();await ready();assert.equal(await page.locator('#game-root').getAttribute('data-cash'),expected.toString());

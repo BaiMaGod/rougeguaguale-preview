@@ -163,7 +163,7 @@ function ticketView():void {
    panel(slot.x,slot.y,slot.size,slot.size,'#aab1ba',16);text(slot.x,slot.y+slot.size*.3,'未选择',slot.size<120?20:28,'#596474',slot.size,'center');
   }
  }
- if(r.status!=='playing'){
+ if(r.status!=='playing'&&r.status!=='won'){
   panel(64,1056,622,47,r.status==='won'?'#dfd9ad':r.status==='bankrupt'?'#e8b7a7':'#e4d9c1',12);
   text(76,1058,r.status==='won'?'中奖 '+money(r.prize)+(t.settled?' · 已到账':' · 待领取'):r.message,25,r.status==='bankrupt'?'#963f35':C.ink,598,'center',true);
  }
@@ -323,8 +323,7 @@ function renderControls():void {
  top.append(actionButton('自动机器',()=>{screen='machine';riskDialog=false;render();},false,screen==='machine'?'active':'secondary'));
  if(screen==='ticket'&&state.active){
     const emblem=box('idiom-ticket-emblem');emblem.dataset.card=state.active.cardId;controls.appendChild(emblem);
-    const watermark=box('idiom-ticket-watermark');watermark.dataset.card=state.active.cardId;
-    watermark.setAttribute('aria-hidden','true');controls.appendChild(watermark);
+    // The header emblem carries the illustration; keep scratch cells free of decorative overlays.
     // Burst originates at the actual scratched cell. Consume immediately so unrelated re-renders do not replay it.
     if(revealEffect?.nonce===state.active.nonce){
       const effect=revealEffect;revealEffect=null;
@@ -349,7 +348,7 @@ function renderControls():void {
       const jackpot=outcome.prize>=cardDefinition(state.active.cardId).headlinePrize;
       if(jackpot)celebrate.classList.add('jackpot');
       celebrate.setAttribute('aria-live','polite');
-      p(celebrate,(jackpot?'头奖降临 · ':'恭喜中奖 ')+money(outcome.prize)+'！');
+      p(celebrate,(jackpot?'头奖降临 · ':'中奖 ')+money(outcome.prize)+(state.active.settled?' · 已到账':' · 待领取'));
       for(let i=0;i<12;i++){
         const coin=box('win-coin'),angle=i*Math.PI/6;
         coin.setAttribute('aria-hidden','true');

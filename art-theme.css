@@ -384,3 +384,8 @@ body{background:#0a1126 url("./assets/workshop-scene.svg") center / cover no-rep
  #game-root[data-screen="ticket"] .idiom-win-celebration::after,
  #game-root[data-screen="ticket"] .idiom-win-celebration .win-coin{animation:none!important}
 }
+
+/* QA screenshot refinement: reserve a single result strip and never draw artwork across scratch cells */
+#game-root[data-screen="ticket"] .idiom-ticket-watermark{display:none!important}
+#game-root[data-screen="ticket"] .idiom-win-celebration{top:1048px;left:68px;right:68px;min-height:53px;border-width:2px;border-radius:17px}
+#game-root[data-screen="ticket"] .idiom-win-celebration p{font-size:27px;line-height:1.2;margin:9px 3px}
