@@ -9,7 +9,7 @@ import {resolveTicket,revealCell,cashOut} from '../build/idiom/resolver.js';
 import {newGame,serializeGame,SAVE_KEY} from '../build/idiom/wallet.js';
 import {MILESTONES,TECHS,COSTS} from '../build/idiom/growth.js';
 const base=resolve('.'),evidence=resolve('qa-evidence');await mkdir(evidence,{recursive:true});
-const mime={'.html':'text/html','.css':'text/css','.js':'text/javascript','.json':'application/json'};
+const mime={'.html':'text/html','.css':'text/css','.js':'text/javascript','.json':'application/json','.svg':'image/svg+xml','.webp':'image/webp','.png':'image/png'};
 const server=createServer(async(req,res)=>{
  try{const path=resolve(base,'.'+decodeURIComponent(new URL(req.url,'http://localhost').pathname));
   if(!path.startsWith(base+'/')&&path!==base)throw new Error('Invalid path');
@@ -61,6 +61,10 @@ function progression(level=0){const earned=MILESTONES.reduce((s,m)=>s+m.points,0
 try{
  console.log('QA started');
  await page.goto(url);await ready();assert.equal(await page.locator('.idiom-card').count(),18);
+ const artImageWidth=await page.evaluate(async()=>new Promise(resolve=>{const img=new Image();img.onload=()=>resolve(img.naturalWidth);img.onerror=()=>resolve(0);img.src='./assets/ticket-t01.svg';}));
+ assert.ok(artImageWidth>0,'Card illustration SVG did not render in browser');
+ const artworkLayer=await page.locator('.idiom-card').first().evaluate(el=>getComputedStyle(el,'::after').backgroundImage);
+ assert.match(artworkLayer,/ticket-t01\.svg/,'Card illustration background missing');console.log('CARD_ART_OK',artImageWidth);
  await shot('mobile-catalog');await page.getByRole('button',{name:'买 一五一十 · 2元',exact:true}).click();
  assert.equal(await page.locator('#game-root').getAttribute('data-cash'),'58');assert.equal(await page.locator('canvas[data-index]').count(),1);
  await shot('mobile-first-ticket');await scratch(0);

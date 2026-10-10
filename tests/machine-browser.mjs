@@ -8,7 +8,7 @@ import {buyMachine,configureMachine,enqueueMachine,startMachine,advanceMachine,d
 import {resolveTicket,revealCell} from '../build/idiom/resolver.js';
 const base=resolve('.'),evidence=resolve('qa-evidence');await mkdir(evidence,{recursive:true});
 const server=createServer(async(req,res)=>{try{const p=resolve(base,'.'+new URL(req.url,'http://localhost').pathname);if(!p.startsWith(base+'/')&&p!==base)throw Error('path');
- const file=p===base?resolve(base,'index.html'):p;res.setHeader('Content-Type',({'.js':'text/javascript','.css':'text/css','.html':'text/html'})[extname(file)]??'application/octet-stream');res.end(await readFile(file));}catch{res.statusCode=404;res.end();}});
+ const file=p===base?resolve(base,'index.html'):p;res.setHeader('Content-Type',({'.js':'text/javascript','.css':'text/css','.html':'text/html','.svg':'image/svg+xml','.webp':'image/webp','.png':'image/png'})[extname(file)]??'application/octet-stream');res.end(await readFile(file));}catch{res.statusCode=404;res.end();}});
 await new Promise(ok=>server.listen(0,'127.0.0.1',ok));const url='http://127.0.0.1:'+server.address().port;
 const browser=await chromium.launch({args:['--no-sandbox','--enable-unsafe-swiftshader']});const errors=[],checks=[];
 const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true}),page=await context.newPage();page.setDefaultTimeout(15000);

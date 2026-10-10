@@ -10,7 +10,7 @@ import {offerDraft} from '../build/idiom/run-build.js';
 import {chooseRunBoost,rebirthPreview} from '../build/idiom/rebirth.js';
 import {buyMachine,enqueueMachine,startMachine,advanceMachine,pauseMachine} from '../build/idiom/machine.js';
 const base=resolve('.'),evidence=resolve('qa-evidence');await mkdir(evidence,{recursive:true});
-const server=createServer(async(req,res)=>{try{const p=resolve(base,'.'+new URL(req.url,'http://localhost').pathname),file=p===base?resolve(base,'index.html'):p;if(!p.startsWith(base+'/')&&p!==base)throw Error('path');res.setHeader('Content-Type',({'.js':'text/javascript','.css':'text/css','.html':'text/html'})[extname(file)]??'application/octet-stream');res.end(await readFile(file));}catch{res.statusCode=404;res.end();}});
+const server=createServer(async(req,res)=>{try{const p=resolve(base,'.'+new URL(req.url,'http://localhost').pathname),file=p===base?resolve(base,'index.html'):p;if(!p.startsWith(base+'/')&&p!==base)throw Error('path');res.setHeader('Content-Type',({'.js':'text/javascript','.css':'text/css','.html':'text/html','.svg':'image/svg+xml','.webp':'image/webp','.png':'image/png'})[extname(file)]??'application/octet-stream');res.end(await readFile(file));}catch{res.statusCode=404;res.end();}});
 await new Promise(ok=>server.listen(0,'127.0.0.1',ok));const url='http://127.0.0.1:'+server.address().port;
 const browser=await chromium.launch({args:['--no-sandbox','--enable-unsafe-swiftshader']}),context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
 const page=await context.newPage(),errors=[],checks=[];page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(e.message));
