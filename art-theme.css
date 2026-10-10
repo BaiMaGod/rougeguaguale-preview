@@ -256,3 +256,75 @@ body{background:#0a1126 url("./assets/workshop-scene.svg") center / cover no-rep
 #game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T03"]::after{content:"";background:url("./assets/ticket-t03.svg") center / 130% no-repeat}
 #game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T04"]::after{content:"";background:url("./assets/ticket-t04.svg") center / 130% no-repeat}
 #game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T02"]::after{background-size:134%}
+
+
+/* V3.3 图鉴插画全量版 - 彩色票面、半透明水印与文案折行 */
+#idiom-controls .idiom-card::after{width:174px;height:182px;top:65px;background-size:contain;background-position:center;background-repeat:no-repeat}
+#idiom-controls .idiom-card.locked::after{opacity:.62;filter:saturate(.48) brightness(.85)}
+#idiom-controls .idiom-card .idiom-card-name{text-shadow:0 2px 2px #532024,0 4px 8px #070c21,0 0 9px #ffdda766}
+#idiom-controls .idiom-card .idiom-rule{position:relative;background:linear-gradient(90deg,#0a1524a0,#06172b06);border-radius:5px}
+#idiom-controls .idiom-footer .idiom-message{white-space:normal;text-overflow:clip;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:anywhere;min-height:47px;font-size:19px;line-height:1.3}
+#idiom-controls .idiom-footer>.idiom-btn{margin-top:0}
+#game-root[data-screen="ticket"] #idiom-controls .idiom-footer .idiom-message{min-height:24px;-webkit-line-clamp:1}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark{position:absolute;left:473px;top:843px;width:203px;height:203px;z-index:2;background-position:center;background-size:contain;background-repeat:no-repeat;opacity:.16;pointer-events:none}
+
+#idiom-controls .idiom-card[data-card-id="T05"]{--card1:#146d67;--card2:#12223f;border-color:#5ce6bb}
+#idiom-controls .idiom-card[data-card-id="T05"]::after{background-image:url("./assets/ticket-t05.svg")}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T05"]::after{content:"";background:url("./assets/ticket-t05.svg") center/134% no-repeat}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark[data-card="T05"]{background-image:url("./assets/ticket-t05.svg")}
+#idiom-controls .idiom-card[data-card-id="T06"]{--card1:#856135;--card2:#12223f;border-color:#f9d48b}
+#idiom-controls .idiom-card[data-card-id="T06"]::after{background-image:url("./assets/ticket-t06.svg")}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T06"]::after{content:"";background:url("./assets/ticket-t06.svg") center/134% no-repeat}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark[data-card="T06"]{background-image:url("./assets/ticket-t06.svg")}
+#idiom-controls .idiom-card[data-card-id="T07"]{--card1:#902d5b;--card2:#12223f;border-color:#f8aeaa}
+#idiom-controls .idiom-card[data-card-id="T07"]::after{background-image:url("./assets/ticket-t07.svg")}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T07"]::after{content:"";background:url("./assets/ticket-t07.svg") center/134% no-repeat}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark[data-card="T07"]{background-image:url("./assets/ticket-t07.svg")}
+#idiom-controls .idiom-card[data-card-id="T08"]{--card1:#44427d;--card2:#12223f;border-color:#a9bafe}
+#idiom-controls .idiom-card[data-card-id="T08"]::after{background-image:url("./assets/ticket-t08.svg")}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T08"]::after{content:"";background:url("./assets/ticket-t08.svg") center/134% no-repeat}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark[data-card="T08"]{background-image:url("./assets/ticket-t08.svg")}
+#idiom-controls .idiom-card[data-card-id="T09"]{--card1:#527d4d;--card2:#12223f;border-color:#d3e99a}
+#idiom-controls .idiom-card[data-card-id="T09"]::after{background-image:url("./assets/ticket-t09.svg")}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T09"]::after{content:"";background:url("./assets/ticket-t09.svg") center/134% no-repeat}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark[data-card="T09"]{background-image:url("./assets/ticket-t09.svg")}
+#idiom-controls .idiom-card[data-card-id="T10"]{--card1:#246b84;--card2:#12223f;border-color:#89d8d2}
+#idiom-controls .idiom-card[data-card-id="T10"]::after{background-image:url("./assets/ticket-t10.svg")}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T10"]::after{content:"";background:url("./assets/ticket-t10.svg") center/134% no-repeat}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark[data-card="T10"]{background-image:url("./assets/ticket-t10.svg")}
+#idiom-controls .idiom-card[data-card-id="T11"]{--card1:#a35938;--card2:#12223f;border-color:#f6cb92}
+#idiom-controls .idiom-card[data-card-id="T11"]::after{background-image:url("./assets/ticket-t11.svg")}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T11"]::after{content:"";background:url("./assets/ticket-t11.svg") center/134% no-repeat}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark[data-card="T11"]{background-image:url("./assets/ticket-t11.svg")}
+#idiom-controls .idiom-card[data-card-id="T12"]{--card1:#935e2d;--card2:#12223f;border-color:#ffe9a1}
+#idiom-controls .idiom-card[data-card-id="T12"]::after{background-image:url("./assets/ticket-t12.svg")}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T12"]::after{content:"";background:url("./assets/ticket-t12.svg") center/134% no-repeat}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark[data-card="T12"]{background-image:url("./assets/ticket-t12.svg")}
+#idiom-controls .idiom-card[data-card-id="T13"]{--card1:#34785d;--card2:#12223f;border-color:#c5e48a}
+#idiom-controls .idiom-card[data-card-id="T13"]::after{background-image:url("./assets/ticket-t13.svg")}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T13"]::after{content:"";background:url("./assets/ticket-t13.svg") center/134% no-repeat}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark[data-card="T13"]{background-image:url("./assets/ticket-t13.svg")}
+#idiom-controls .idiom-card[data-card-id="T14"]{--card1:#725433;--card2:#12223f;border-color:#ead69d}
+#idiom-controls .idiom-card[data-card-id="T14"]::after{background-image:url("./assets/ticket-t14.svg")}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T14"]::after{content:"";background:url("./assets/ticket-t14.svg") center/134% no-repeat}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark[data-card="T14"]{background-image:url("./assets/ticket-t14.svg")}
+#idiom-controls .idiom-card[data-card-id="T15"]{--card1:#a83c76;--card2:#12223f;border-color:#ffb8d9}
+#idiom-controls .idiom-card[data-card-id="T15"]::after{background-image:url("./assets/ticket-t15.svg")}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T15"]::after{content:"";background:url("./assets/ticket-t15.svg") center/134% no-repeat}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark[data-card="T15"]{background-image:url("./assets/ticket-t15.svg")}
+#idiom-controls .idiom-card[data-card-id="T16"]{--card1:#783a8d;--card2:#12223f;border-color:#ebb0ed}
+#idiom-controls .idiom-card[data-card-id="T16"]::after{background-image:url("./assets/ticket-t16.svg")}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T16"]::after{content:"";background:url("./assets/ticket-t16.svg") center/134% no-repeat}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark[data-card="T16"]{background-image:url("./assets/ticket-t16.svg")}
+#idiom-controls .idiom-card[data-card-id="T17"]{--card1:#6152a0;--card2:#12223f;border-color:#daccff}
+#idiom-controls .idiom-card[data-card-id="T17"]::after{background-image:url("./assets/ticket-t17.svg")}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T17"]::after{content:"";background:url("./assets/ticket-t17.svg") center/134% no-repeat}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark[data-card="T17"]{background-image:url("./assets/ticket-t17.svg")}
+#idiom-controls .idiom-card[data-card-id="T18"]{--card1:#842a55;--card2:#12223f;border-color:#ffa7a0}
+#idiom-controls .idiom-card[data-card-id="T18"]::after{background-image:url("./assets/ticket-t18.svg")}
+#game-root[data-screen="ticket"] .idiom-ticket-emblem[data-card="T18"]::after{content:"";background:url("./assets/ticket-t18.svg") center/134% no-repeat}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark[data-card="T18"]{background-image:url("./assets/ticket-t18.svg")}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark[data-card="T01"]{background-image:url("./assets/ticket-t01.svg")}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark[data-card="T02"]{background-image:url("./assets/ticket-t02.svg")}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark[data-card="T03"]{background-image:url("./assets/ticket-t03.svg")}
+#game-root[data-screen="ticket"] .idiom-ticket-watermark[data-card="T04"]{background-image:url("./assets/ticket-t04.svg")}
