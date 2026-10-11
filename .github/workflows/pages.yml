@@ -47,10 +47,14 @@ jobs:
       - name: Assemble verified static game
         run: |
           mkdir -p site
-          cp index.html legacy.html styles.css art-theme.css site/
+          cp index.html legacy.html styles.css art-theme.css game-theme.css site/
           cp -R assets site/
           cp -R build libs site/
           touch site/.nojekyll
+          test -s site/game-theme.css
+          test -s site/assets/scratch-shop-v35.webp
+          test -s site/assets/desk-objects-v35.webp
+          test -s site/assets/ornate-ticket-v35.webp
           test -s site/build/idiom/growth.js
           test -s site/build/idiom/machine.js
           test -s site/build/idiom/machine-state.js
