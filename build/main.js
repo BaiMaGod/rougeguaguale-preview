@@ -8,7 +8,7 @@ import { DRAFT_EVENTS, boostInfo, publicSafeIndex } from './idiom/run-build.js';
 import { rebirthPreview, performRebirth, chooseRunBoost } from './idiom/rebirth.js';
 import { REBIRTH_BONUSES } from './idiom/rebirth-state.js';
 const W = 750, H = 1334;
-const C = { bg: '#141c2c', paper: '#f6e9ca', ink: '#384254', gold: '#edc580', muted: '#a9b9cc' };
+const C = { bg: '#141c2c', paper: '#f6e9ca', ink: '#4b3526', gold: '#edc580', muted: '#a9b9cc' };
 const root = document.getElementById('game-root');
 const foilRoot = document.getElementById('scratch-root');
 const loadError = document.getElementById('load-error');
@@ -211,10 +211,10 @@ function ticketView() {
     const frame = panel(54, 232, 642, 864, 'transparent', 0, heading);
     frame.classList.add('ticket-inner-frame');
     const roomy = !['sum', 'position', 'path', 'cashout', 'ledger', 'ladder'].includes(def.mode);
-    panel(66, 278, 618, roomy ? 141 : 103, heading, 0);
+    panel(66, 278, 618, roomy ? 141 : 103, heading, 0).classList.add('ticket-banner');
     text(78, 231, (CARDS.indexOf(def) < 6 ? '入门' : CARDS.indexOf(def) < 12 ? '进阶' : CARDS.indexOf(def) < 16 ? '冲刺' : '终极') + '成语票  /  ' + def.id, 22, heading, 550);
     text(83, roomy ? 284 : 287, def.name, roomy ? 78 : 54, '#fff1d5', 580, 'center', true).classList.add('ticket-name');
-    text(76, roomy ? 380 : 345, '票价 ' + money(def.price) + '     基础最高 ' + money(def.headlinePrize), 20, '#fff1d5', 600, 'center');
+    text(76, roomy ? 380 : 345, '票价 ' + money(def.price) + '     基础最高 ' + money(def.headlinePrize), 20, '#fff1d5', 600, 'center').classList.add('ticket-price-line');
     text(66, roomy ? 430 : 390, def.rule, def.rule.length > 24 ? 22 : 25, C.ink, 618, 'center', true);
     const tool = scratchTool(t.growth?.scratch ?? 0), model = growthModel(t.cardId, t.growth ?? zeroLevels());
     const hint = text(66, roomy ? 472 : 430, (t.boost ? '本票强化：' + boostInfo(t.boost).name : def.hint) + '\n' + tool.name + ' Lv.' + (t.growth?.scratch ?? 0) + ' · 本票奖金 ×' + multiplier(model.bonusBps) + (t.boost === 'rise' ? '（翻倍后封顶3000元）' : ''), 19, '#7c715f', 618, 'center');
@@ -550,9 +550,9 @@ function renderPreview() {
     paper.classList.add('ticket-paper');
     panel(54, 232, 642, 864, 'transparent', 0, heading).classList.add('ticket-inner-frame');
     text(78, 231, '好运工坊  /  ' + def.id, 22, heading, 550);
-    panel(66, 278, 618, 141, heading, 0);
+    panel(66, 278, 618, 141, heading, 0).classList.add('ticket-banner');
     text(83, 284, def.name, 78, '#fff1d5', 580, 'center', true).classList.add('ticket-name');
-    text(76, 380, '票价 ' + money(def.price) + '     基础最高 ' + money(def.headlinePrize), 20, '#fff1d5', 600, 'center');
+    text(76, 380, '票价 ' + money(def.price) + '     基础最高 ' + money(def.headlinePrize), 20, '#fff1d5', 600, 'center').classList.add('ticket-price-line');
     text(66, 433, def.rule, 26, '#514436', 618, 'center', true);
     text(86, 479, def.hint, 21, '#7c715f', 580, 'center');
     const cover = panel(208, 534, 334, 334, '#b6b6ae', 16, '#96968f');
@@ -586,7 +586,8 @@ function renderQuickGrowth() {
     p(side, state.machine.level ? MACHINE_LEVELS[state.machine.level].name + '机 · 已处理 ' + state.machine.processed + ' 张' : '购入机器，让好运自动运转', 'quick-subtitle');
 }
 function renderControls() {
-    const scrollTop = controls.querySelector('.idiom-catalog')?.scrollTop ?? 0;
+    const previousScroller = controls.querySelector('.idiom-catalog');
+    const scrollTop = previousScroller?.scrollTop ?? 0, scrollLeft = previousScroller?.scrollLeft ?? 0;
     controls.replaceChildren();
     // Render dynamic text above reusable ornamental art; the poster itself never owns money or payout values.
     const masthead = box('idiom-masthead');
@@ -617,6 +618,16 @@ function renderControls() {
     top.append(actionButton('刮奖记录', () => { screen = 'records'; render(); }, false, screen === 'records' ? 'active' : 'secondary'));
     top.append(actionButton('永久成长', () => { screen = 'growth'; riskDialog = false; rebirthQuote = null; render(); }, false, ['growth', 'build', 'rebirth'].includes(screen) ? 'active' : 'secondary'));
     top.append(actionButton('自动机器', () => { screen = 'machine'; riskDialog = false; render(); }, false, screen === 'machine' ? 'active' : 'secondary'));
+    const navLabels = ['选票', '刮奖', '记录', '成长', '机器'];
+    Array.from(top.children).forEach((element, i) => {
+        const button = element, icon = box('game-object-icon object-' + i), label = document.createElement('span');
+        button.setAttribute('aria-label', button.textContent);
+        button.setAttribute('aria-pressed', String(button.classList.contains('active')));
+        icon.setAttribute('aria-hidden', 'true');
+        label.className = 'game-object-label';
+        label.textContent = navLabels[i];
+        button.replaceChildren(icon, label);
+    });
     if (screen === 'ticket' && state.active) {
         // The header emblem carries the illustration; keep scratch cells free of decorative overlays.
         // Burst originates at the actual scratched cell. Consume immediately so unrelated re-renders do not replay it.
@@ -694,7 +705,7 @@ function renderControls() {
         else if (def.mode === 'cashout')
             footer.append(actionButton('现在收手 · ' + money(r.accrued), () => update(stopAndCollect), r.accrued === 0n));
         else
-            p(footer, '手指来回擦掉银层，抬手揭晓；选择类卡一旦开始刮就锁定选择。', 'idiom-tip');
+            p(footer, ['eye', 'destiny', 'hearts', 'ladder', 'mines', 'path'].includes(def.mode) ? '选定一格，来回刮开 · 抬手揭晓' : '按住银层，来回刮开 · 抬手揭晓', 'idiom-tip');
     }
     else if (screen === 'catalog') {
         const def = cardDefinition(selected), locked = CARDS.indexOf(def) >= state.unlockedCount;
@@ -732,8 +743,10 @@ function renderControls() {
     if (state.cash < 2n && (!state.active || state.active.settled))
         footer.append(actionButton('领取20元恢复金（每60秒一次）', () => update(s => recoveryCash(s, Date.now())), false, 'secondary'));
     const scroller = controls.querySelector('.idiom-catalog');
-    if (scroller)
+    if (scroller) {
         scroller.scrollTop = scrollTop;
+        scroller.scrollLeft = scrollLeft;
+    }
     if (riskDialog) {
         const veil = box('idiom-modal'), dialog = box('idiom-dialog');
         veil.appendChild(dialog);

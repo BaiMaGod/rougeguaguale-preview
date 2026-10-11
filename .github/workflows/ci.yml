@@ -1,7 +1,7 @@
 name: V3.1 Rebirth Rules and Browser QA
 on:
   push:
-    branches: [main, v31-basic-cards, v31-permanent-growth, v31-auto-machine, v31-rebirth, v34-counter-art]
+    branches: [main, v31-basic-cards, v31-permanent-growth, v31-auto-machine, v31-rebirth, v34-counter-art, v35-scratch-shop]
   pull_request:
 jobs:
   test:

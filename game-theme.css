@@ -1,0 +1,102 @@
+/* V3.5: the UI is a collection of objects on an illustrated scratch desk. */
+:root{--game-gold:#ffd577;--game-ink:#583020;--game-jade:#245346;--game-coral:#bc4931}
+body{background:radial-gradient(ellipse at center,#583320,#1c1613 78%)}
+#game-root{background:#693b23 url('./assets/scratch-shop-v35.webp') center/cover no-repeat;box-shadow:0 0 0 2px #8d5a38,0 0 100px #0008}
+#game-root::before{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(#341c0715,transparent 24%,transparent 80%,#3a1b1040);z-index:1}
+#idiom-controls{font-family:'Noto Sans CJK SC','Microsoft YaHei',sans-serif;color:var(--game-ink)}
+.idiom-masthead{height:145px;padding:0;background:none;border:0;box-shadow:none;display:block}
+.idiom-sign{position:absolute;top:23px;left:15%;right:15%;height:47px;justify-content:center;gap:0}
+.idiom-sign::before,.idiom-sign-subtitle,.idiom-version-tag{display:none}
+.idiom-sign-title{font-family:'STKaiti','KaiTi','Noto Serif CJK SC',serif;font-size:34px;letter-spacing:4px;color:#ffd481;font-weight:950;text-shadow:0 3px 0 #713a20,1px 0 #713a20,-1px 0 #713a20,0 5px 5px #1e120a80;white-space:nowrap}
+.idiom-wallet-bar{position:absolute;top:88px;bottom:auto;left:18px;right:18px;gap:11px;justify-content:space-between}
+.idiom-resource{position:relative;min-height:36px;gap:4px;padding:4px 10px 4px 34px;background:linear-gradient(#fff3ce,#f7dca2);border:2px solid #d09a51;border-radius:22px;box-shadow:inset 0 0 0 2px #fff0c2,0 3px 0 #6e3d23,0 5px 7px #1e110b55;min-width:0}
+.idiom-resource-label{display:none}.idiom-resource-value{font-family:inherit;font-size:20px;font-weight:950;color:#542411;line-height:1.2}
+.idiom-resource::before{content:'';position:absolute;left:-7px;top:-7px;width:48px;height:48px;background:url('./assets/desk-objects-v35.webp') 25% center/500% 100% no-repeat;filter:drop-shadow(0 2px 1px #653b2655)}
+.idiom-resource.cash{flex:1}.idiom-resource.fortune{width:30%;padding-left:33px}.idiom-resource.fortune::before{content:'';background-position:75% center;font-size:0}
+.idiom-resource.progress{padding:5px 8px;width:auto;min-height:36px;border-radius:15px;background:#315d4e;border-color:#bc9856}
+.idiom-resource.progress::before{display:none}.idiom-resource.progress .idiom-resource-value{font-size:12px;color:#ffdfa1}
+.idiom-quick-growth{display:none}
+.idiom-worktable{top:149px;bottom:195px;left:0;right:0}
+#game-root[data-screen='catalog'] .idiom-worktable{bottom:282px}
+.idiom-ticket-stage{filter:drop-shadow(6px 12px 5px #20130880)}
+.ticket-paper{background:transparent url('./assets/ornate-ticket-v35.webp') center/100% 100% no-repeat!important;border:0!important;border-radius:15px!important;box-shadow:none}
+.ticket-paper::before,.ticket-paper::after{display:none}
+.ticket-inner-frame{border:0!important;outline:none;background:none}
+.ticket-banner{background:transparent!important}
+.ticket-print.ticket-name{font-family:'STKaiti','KaiTi','Noto Serif CJK SC',serif;font-weight:950;letter-spacing:3px;color:#b64528!important;text-shadow:1px 2px 0 #ffe9ad,-1px 0 #a9492520}
+#game-root[data-card='T03'] .ticket-name,#game-root[data-card='T05'] .ticket-name,#game-root[data-card='T09'] .ticket-name,#game-root[data-card='T10'] .ticket-name,#game-root[data-card='T13'] .ticket-name{color:#28654b!important}
+.ticket-price-line{color:#7a4d2c!important;font-weight:750!important;background:#f0d38e99;border-radius:16px;padding:3px 0;min-height:30px!important}
+.ticket-vignette{top:925px;left:92px;width:566px;height:140px;opacity:1;filter:drop-shadow(0 2px 0 #9b572325)}
+.ticket-motif{opacity:.55;left:95px;top:508px;width:80px;height:80px}
+.ticket-barcode{display:none}
+.preview-foil{border:4px solid #b1a384!important;box-shadow:0 3px 0 #998756,inset 0 0 0 3px #d8e0d666,inset 0 2px 5px #52636540;background:repeating-linear-gradient(4deg,#ffffff16 0 1px,transparent 1px 3px),linear-gradient(135deg,#9eaaa9,#d1d9d6 40%,#a2afaf 60%,#bec8c2)!important}
+#scratch-root canvas[data-index]{box-shadow:inset 0 0 0 2px #dbe4de88,0 3px 2px #85653640}
+#game-root[data-screen='catalog'] .idiom-catalog{left:14px;right:14px;bottom:190px;height:81px;padding:7px 8px 9px;overflow-x:auto;overflow-y:hidden;border:0;border-bottom:7px solid #844626;border-radius:8px 8px 12px 12px;background:linear-gradient(transparent 65%,#b77c4180 66%);box-shadow:0 5px 0 #43231988;scrollbar-width:none}
+#game-root[data-screen='catalog'] .idiom-card-grid{gap:11px;align-items:end;flex-direction:row}
+#game-root[data-screen='catalog'] .idiom-card{width:115px;min-height:64px;padding:9px 5px 4px 37px;border:2px solid #eaa666;border-radius:5px 5px 2px 2px;background:#fff0ce url('./assets/ornate-ticket-v35.webp') center/100% 100%;box-shadow:2px 2px 1px #4a241d90;transform:rotate(-3deg);overflow:hidden;transition:transform .15s,filter .15s}
+#game-root[data-screen='catalog'] .idiom-card:nth-child(even){transform:rotate(3deg)}
+#game-root[data-screen='catalog'] .idiom-card.selected{border-color:#ffdd7c;box-shadow:0 0 0 2px #ffcb67,0 0 15px #efaa4355;transform:translateY(-3px)}
+#game-root[data-screen='catalog'] .idiom-card.locked{opacity:.72;filter:saturate(.25) brightness(.8)}
+#game-root[data-screen='catalog'] .idiom-card::before{display:none}
+#game-root[data-screen='catalog'] .idiom-card::after{left:3px;top:16px;width:34px;height:35px;opacity:1}
+#game-root[data-screen='catalog'] .idiom-card .idiom-card-name{font-family:'Noto Serif CJK SC',serif;font-size:13px;line-height:1.6;color:#783927;letter-spacing:0;white-space:nowrap}
+#game-root[data-screen='catalog'] .idiom-card .idiom-price{font-size:10px;line-height:1.4;color:#6a4229;margin:0!important}
+#game-root[data-screen='catalog'] .idiom-tier,#game-root[data-screen='catalog'] .idiom-prize,#game-root[data-screen='catalog'] .idiom-lock{display:none}
+.idiom-top{left:10px;right:10px;width:auto;bottom:max(9px,env(safe-area-inset-bottom));gap:5px;height:80px;align-items:end}
+.idiom-top .idiom-btn{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:end;gap:0;min-height:79px;padding:0;margin:0;background:none!important;border:0!important;border-radius:0;box-shadow:none!important;color:#47291a;font-size:11px;line-height:1.2;overflow:visible;transition:filter .12s,transform .12s}
+.game-object-icon{width:61px;height:64px;background-image:url('./assets/desk-objects-v35.webp');background-size:500% auto;background-repeat:no-repeat;filter:drop-shadow(0 3px 2px #33160788);flex:none;transform-origin:50% 90%}
+.object-0{background-position:0% center}.object-1{background-position:25% center}.object-2{background-position:50% center}.object-3{background-position:75% center}.object-4{background-position:100% center}
+.game-object-label{display:block;min-width:51px;padding:3px 7px 4px;background:linear-gradient(#f4cf9b,#ce965f);border:1px solid #9a5e33;border-radius:8px;box-shadow:inset 0 1px #fff0c1,0 2px 0 #713d23;font-weight:900;white-space:nowrap;text-shadow:0 1px #ffdfad}
+.idiom-top .idiom-btn.active .game-object-label{background:linear-gradient(#fff0b9,#e4b457);color:#4e2b13;border-color:#f4cc73;box-shadow:0 0 0 1px #cd8143,0 2px 0 #6a3b1c}
+.idiom-top .idiom-btn.active .game-object-icon{filter:drop-shadow(0 0 4px #ffe6a1) drop-shadow(0 3px 2px #33160788);transform:translateY(-3px)}
+.idiom-top .idiom-btn:disabled{opacity:.58}
+.idiom-top .idiom-btn:active:not(:disabled) .game-object-icon{transform:translateY(1px) scale(.92)}
+.idiom-footer,#game-root[data-screen='ticket'] .idiom-footer{left:24px;right:24px;width:auto;top:auto!important;bottom:103px;min-height:78px!important;padding:0;background:none;text-align:center}
+.idiom-footer p{font-size:11px!important;line-height:1.35!important;color:#ffe6bc;background:#54321cd9;border:1px solid #ba86414d;border-radius:12px;padding:4px 12px;margin:0 auto 7px;max-height:34px;max-width:100%;overflow:auto}
+.idiom-footer .idiom-btn{position:relative;min-height:51px!important;margin:0;padding:8px 10px!important;border:2px solid #c68932;border-radius:29px;background:linear-gradient(#ffe69a 0%,#ffd363 45%,#f4b83d 86%,#e2992f);font-family:inherit;font-size:19px!important;font-weight:950;color:#6b2d10;text-shadow:0 1px #fff0b2;box-shadow:inset 0 0 0 2px #ffedb0,inset 0 -5px 0 #e09b31,0 4px 0 #835024,0 8px 8px #2b140b66}
+.idiom-footer .idiom-btn::before{content:'✤';display:inline-block;margin-right:9px;color:#ad641c;font-size:22px;vertical-align:middle}
+.idiom-footer .idiom-btn.secondary{background:linear-gradient(#f7dfb2,#dab780);color:#6a4128}
+.idiom-footer .idiom-btn:disabled{filter:saturate(.4);opacity:.7}
+.idiom-footer .idiom-tip{background:none;border:0;color:#ffe5bc;text-shadow:0 2px 2px #331c10;font-size:12px!important;font-weight:750;padding:0 3px}
+#game-root:not([data-screen='catalog']):not([data-screen='ticket']) .idiom-catalog{top:145px;bottom:197px;left:50%;width:calc(100% - 30px);transform:translateX(-50%);padding:21px 17px 20px;border:5px solid #b38647;border-radius:24px;background:linear-gradient(#fff0ce,#f3dcaf);box-shadow:inset 0 0 0 2px #ffe5a6,0 7px 0 #694123,0 12px 15px #27160b99;scrollbar-color:#ad783e transparent}
+#game-root:not([data-screen='catalog']):not([data-screen='ticket']) .idiom-catalog::before{display:none}
+.idiom-catalog p{color:#785334;font-size:13px;line-height:1.55}
+.idiom-title{font-size:25px!important;color:#61361e!important;font-weight:950;text-align:center;text-shadow:0 1px #fff3d1}
+.idiom-tech,.idiom-receipt{position:relative;padding:14px;margin:13px 0;border:2px solid #c6a16a;border-radius:14px;background:#ffefce;box-shadow:inset 0 1px #fff9dc,0 3px 0 #b48a5550}
+.idiom-tech-name,.idiom-growth-balance{font-size:18px!important;color:#38644a!important;font-weight:900}
+.idiom-tech .idiom-btn,.idiom-catalog>.idiom-btn{background:linear-gradient(#77ab78,#497652);border:2px solid #315a3b;color:#fff3cb;box-shadow:inset 0 2px #bce0a255,0 3px 0 #294b2d;border-radius:12px;font-size:14px;min-height:40px}
+.idiom-growth-tabs{gap:5px;margin-bottom:17px}
+.idiom-growth-tabs .idiom-btn{font-size:12px;min-height:39px;margin:0;padding:7px 3px;border:2px solid #a9814b;border-radius:10px;background:linear-gradient(#f6dfb3,#dabc80);color:#725131;box-shadow:0 3px 0 #ab7f46}
+.idiom-growth-tabs .idiom-btn.active{background:linear-gradient(#658d60,#3c6445);color:#fff0bd;border-color:#325c3f;box-shadow:0 3px 0 #274832}
+.idiom-lock{color:#8a6744!important;font-size:11px!important}
+.idiom-machine-form{padding:12px;gap:10px;border:2px solid #c6a16a;border-radius:15px;background:#ecd3a2}
+.idiom-machine-form label{font-size:11px;color:#765334}.idiom-machine-form input,.idiom-machine-form select{min-height:38px;padding:7px;background:#fff3d7;border:2px solid #b79864;border-radius:10px;color:#553a27;font-size:13px;box-shadow:inset 0 2px 3px #b2945c33}
+.idiom-machine-form .idiom-btn{min-height:38px;font-size:13px;background:linear-gradient(#5f9167,#3c694c);color:#fff0c9;border:2px solid #31563b;border-radius:10px;box-shadow:0 3px 0 #29482f}
+.idiom-reset-table{font-size:10px}.idiom-reset-table th,.idiom-reset-table td{padding:7px;border-color:#c5a779;background:#f9e6c2;color:#775638}.idiom-reset-table th{background:#ddc692;color:#5b4d2b}
+.idiom-modal{background:#2c1e0cdf;backdrop-filter:blur(5px);padding:18px}
+.idiom-dialog{max-height:88%;padding:20px;border:5px solid #b58a47;border-radius:25px;background:linear-gradient(#fff1cf,#ecd1a1);box-shadow:inset 0 0 0 2px #ffe4a2,0 9px 0 #58351d,0 14px 25px #1b110aaa;overflow:auto}
+.idiom-dialog p{font-size:14px;line-height:1.65;color:#775638}.idiom-dialog .idiom-title{font-size:25px!important}
+.idiom-dialog .idiom-btn{font-size:15px;min-height:45px;border:2px solid #c29348;border-radius:15px;background:linear-gradient(#ffe9a2,#e8b34d);color:#653419;box-shadow:0 3px 0 #9d6b30}
+.idiom-dialog .idiom-btn.secondary{background:linear-gradient(#ebd5b3,#c9ad7e);color:#76573c}
+.idiom-win-celebration{left:65px;right:65px;top:855px;min-height:62px;border:4px solid #e8b851;border-radius:26px;background:linear-gradient(#608e63,#3b6749);box-shadow:0 4px 0 #ad7935,0 7px 9px #684c2544;color:#fff1b8}
+.idiom-win-celebration.jackpot{background:linear-gradient(#dd783d,#b64a2c);border-color:#ffdb7f}
+.idiom-win-celebration p{font-size:29px;font-weight:950;margin:10px 5px;text-shadow:0 2px #4f3425}
+@container(max-width:300px){.idiom-sign-title{font-size:26px;letter-spacing:2px}.idiom-wallet-bar{left:12px;right:12px;gap:6px}.idiom-resource-value{font-size:16px}.idiom-resource{padding-left:26px}.idiom-resource::before{width:39px;height:39px;left:-6px;top:-4px}.idiom-resource.fortune{padding-left:27px}.game-object-icon{width:43px;height:49px}.game-object-label{font-size:10px;min-width:35px;padding:3px 4px}.idiom-footer{left:16px;right:16px}}
+@media(max-height:720px){
+ .idiom-masthead{height:114px}.idiom-sign{top:13px;height:40px}.idiom-sign-title{font-size:28px}.idiom-wallet-bar{top:66px}.idiom-resource{min-height:32px}.idiom-resource-value{font-size:17px}.idiom-resource.progress{min-height:32px}
+ .idiom-worktable{top:115px;bottom:173px}#game-root[data-screen='catalog'] .idiom-worktable{bottom:248px}
+ #game-root[data-screen='catalog'] .idiom-catalog{bottom:168px;height:72px;padding-top:5px}#game-root[data-screen='catalog'] .idiom-card{min-height:57px;width:107px;padding-top:6px}.idiom-card .idiom-card-name{font-size:12px}
+ .idiom-top{height:68px;bottom:7px;gap:3px}.idiom-top .idiom-btn{min-height:68px}.game-object-icon{width:49px;height:48px}.game-object-label{min-width:43px;font-size:10px;padding:3px 5px}
+ .idiom-footer,#game-root[data-screen='ticket'] .idiom-footer{bottom:86px;min-height:74px!important;left:17px;right:17px}.idiom-footer .idiom-btn{min-height:43px!important;font-size:16px!important}.idiom-footer p{font-size:10px!important;max-height:30px;margin-bottom:5px}
+ #game-root:not([data-screen='catalog']):not([data-screen='ticket']) .idiom-catalog{top:115px;bottom:173px;padding:15px 12px}
+}
+@media(max-height:550px){
+ .idiom-masthead{height:71px}.idiom-sign{top:6px;height:25px}.idiom-sign-title{font-size:18px;letter-spacing:1px}.idiom-wallet-bar{top:37px;left:10px;right:10px;gap:5px}.idiom-resource{min-height:25px;padding:3px 5px 3px 21px;border-width:1px}.idiom-resource-value{font-size:13px}.idiom-resource::before{width:29px;height:29px;left:-4px;top:-2px}.idiom-resource.fortune{padding-left:21px}.idiom-resource.progress{min-height:25px;padding:4px}.idiom-resource.progress .idiom-resource-value{font-size:9px}
+ .idiom-worktable{top:74px;bottom:116px}#game-root[data-screen='catalog'] .idiom-worktable{bottom:172px}
+ #game-root[data-screen='catalog'] .idiom-catalog{bottom:112px;height:54px;left:8px;right:8px;padding:3px 4px 5px;border-bottom-width:4px}#game-root[data-screen='catalog'] .idiom-card{min-height:45px;width:98px;padding:4px 4px 3px 30px}#game-root[data-screen='catalog'] .idiom-card::after{top:10px;left:3px;width:28px;height:30px}#game-root[data-screen='catalog'] .idiom-card .idiom-card-name{font-size:11px}#game-root[data-screen='catalog'] .idiom-card .idiom-price{font-size:9px}
+ .idiom-top{left:5px;right:5px;bottom:5px;height:48px}.idiom-top .idiom-btn{min-height:48px}.game-object-icon{width:36px;height:31px}.game-object-label{font-size:8px;min-width:32px;border-radius:5px;padding:2px 3px}
+ .idiom-footer,#game-root[data-screen='ticket'] .idiom-footer{left:10px;right:10px;bottom:60px;min-height:47px!important}.idiom-footer p{font-size:9px!important;max-height:24px;padding:2px 6px;margin-bottom:4px}.idiom-footer .idiom-btn{min-height:29px!important;font-size:12px!important;padding:4px 5px!important}.idiom-footer .idiom-btn::before{font-size:15px;margin-right:4px}.idiom-footer .idiom-tip{font-size:9px!important}
+ #game-root:not([data-screen='catalog']):not([data-screen='ticket']) .idiom-catalog{top:74px;bottom:116px;padding:9px 7px;border-width:3px;border-radius:15px}
+ .idiom-title{font-size:20px!important}.idiom-tech,.idiom-receipt{padding:10px 7px}.idiom-growth-tabs .idiom-btn{font-size:10px}.idiom-reset-table th,.idiom-reset-table td{padding:5px}.idiom-dialog{padding:12px;border-width:3px}
+}
+@media(prefers-reduced-motion:reduce){.game-object-icon,.idiom-card,.idiom-top .idiom-btn{transition:none}}

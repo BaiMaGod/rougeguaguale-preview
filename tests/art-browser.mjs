@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {resolve,extname} from 'node:path';
-const base=resolve('.'),out=resolve('qa-evidence/art-v34');await mkdir(out,{recursive:true});
+const base=resolve('.'),out=resolve('qa-evidence/art-v35');await mkdir(out,{recursive:true});
 const mime={'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.webp':'image/webp'};
 const server=createServer(async(req,res)=>{try{let path=resolve(base,'.'+new URL(req.url,'http://localhost').pathname);if(path===base)path=resolve(base,'index.html');assert.ok(path.startsWith(base+'/'));res.setHeader('Content-Type',mime[extname(path)]??'application/octet-stream');res.end(await readFile(path));}catch{res.statusCode=404;res.end('Not found');}});
 await new Promise(ok=>server.listen(0,'127.0.0.1',ok));const url='http://127.0.0.1:'+server.address().port,results=[],errors=[];
@@ -19,7 +19,7 @@ async function exercise(b,profile){
  assert.ok(frame.y>=-1&&frame.x>=-1&&frame.x+frame.width<=view.width+1&&frame.y+frame.height<=view.height+1,'Portrait frame fits viewport');
  assert.equal(await page.locator('.idiom-quick-growth').isVisible(),false);
  if(profile.fallback)assert.equal(await page.locator('#game-root').getAttribute('data-renderer'),'canvas2d');
- const art=await page.evaluate(async()=>Promise.all(['lottery-counter-v34.webp','ticket-vignette-v34.webp'].map(n=>new Promise(ok=>{const i=new Image();i.onload=()=>ok(i.naturalWidth>0);i.onerror=()=>ok(false);i.src='./assets/'+n;}))));assert.deepEqual(art,[true,true]);
+ const art=await page.evaluate(async()=>Promise.all(['scratch-shop-v35.webp','ornate-ticket-v35.webp','desk-objects-v35.webp','ticket-vignette-v34.webp'].map(n=>new Promise(ok=>{const i=new Image();i.onload=()=>ok(i.naturalWidth>0);i.onerror=()=>ok(false);i.src='./assets/'+n;}))));assert.deepEqual(art,[true,true,true,true]);
  await page.screenshot({path:resolve(out,profile.name+'-catalog.png')});
  await page.getByRole('button',{name:'买 一五一十 · 2元',exact:true}).click();assert.equal(await page.locator('#game-root').getAttribute('data-cash'),'58');
  const foil=page.locator('canvas[data-index="0"]'),box=await foil.boundingBox();assert.ok(box&&box.width>60,'Foil remains usable');
