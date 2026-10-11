@@ -18,6 +18,11 @@ async function exercise(b,profile){
  assert.ok(Math.abs(frame.x-(view.width-frame.width)/2)<1,'Portrait frame is centered');
  assert.ok(frame.y>=-1&&frame.x>=-1&&frame.x+frame.width<=view.width+1&&frame.y+frame.height<=view.height+1,'Portrait frame fits viewport');
  assert.equal(await page.locator('.idiom-quick-growth').isVisible(),false);
+ const resourceValuesClear=await page.locator('.idiom-resource').evaluateAll(elements=>elements.every(e=>{
+  const icon=getComputedStyle(e,'::before');if(icon.display==='none')return true;
+  const r=e.getBoundingClientRect(),value=e.querySelector('.idiom-resource-value').getBoundingClientRect();
+  return value.left>=r.left+parseFloat(getComputedStyle(e).borderLeftWidth)+parseFloat(icon.left)+parseFloat(icon.width)+1;
+ }));assert.equal(resourceValuesClear,true,'Resource icons must not cover the cash or fortune value');
  if(profile.fallback)assert.equal(await page.locator('#game-root').getAttribute('data-renderer'),'canvas2d');
  const art=await page.evaluate(async()=>Promise.all(['scratch-shop-v35.webp','ornate-ticket-v35.webp','desk-objects-v35.webp','ticket-vignette-v34.webp'].map(n=>new Promise(ok=>{const i=new Image();i.onload=()=>ok(i.naturalWidth>0);i.onerror=()=>ok(false);i.src='./assets/'+n;}))));assert.deepEqual(art,[true,true,true,true]);
  await page.screenshot({path:resolve(out,profile.name+'-catalog.png')});
