@@ -99,6 +99,7 @@ function actionButton(title, action, disabled = false, className = '') {
     b.type = 'button';
     b.className = 'idiom-btn ' + className;
     b.textContent = title;
+    b.setAttribute('aria-label', title);
     b.disabled = disabled;
     b.addEventListener('click', action);
     return b;
@@ -212,7 +213,6 @@ function ticketView() {
     frame.classList.add('ticket-inner-frame');
     const roomy = !['sum', 'position', 'path', 'cashout', 'ledger', 'ladder'].includes(def.mode);
     panel(66, 278, 618, roomy ? 141 : 103, heading, 0).classList.add('ticket-banner');
-    text(78, 231, (CARDS.indexOf(def) < 6 ? '入门' : CARDS.indexOf(def) < 12 ? '进阶' : CARDS.indexOf(def) < 16 ? '冲刺' : '终极') + '成语票  /  ' + def.id, 22, heading, 550);
     text(83, roomy ? 284 : 287, def.name, roomy ? 78 : 54, '#fff1d5', 580, 'center', true).classList.add('ticket-name');
     text(76, roomy ? 380 : 345, '票价 ' + money(def.price) + '     基础最高 ' + money(def.headlinePrize), 20, '#fff1d5', 600, 'center').classList.add('ticket-price-line');
     text(66, roomy ? 430 : 390, def.rule, def.rule.length > 24 ? 22 : 25, C.ink, 618, 'center', true);
@@ -230,7 +230,6 @@ function ticketView() {
     const barcode = box('ticket-barcode');
     barcode.setAttribute('aria-hidden', 'true');
     scene.appendChild(barcode);
-    text(84, 1064, '好运工坊 · 虚拟现金票券', 18, heading, 420);
     if (def.mode === 'multiply')
         text(336, 691, '×', 38, C.ink, 78, 'center', true);
     if (def.mode === 'compare')
@@ -549,7 +548,6 @@ function renderPreview() {
     const paper = panel(34, 210, 682, 908, '#f5e8ce', 2, heading);
     paper.classList.add('ticket-paper');
     panel(54, 232, 642, 864, 'transparent', 0, heading).classList.add('ticket-inner-frame');
-    text(78, 231, '好运工坊  /  ' + def.id, 22, heading, 550);
     panel(66, 278, 618, 141, heading, 0).classList.add('ticket-banner');
     text(83, 284, def.name, 78, '#fff1d5', 580, 'center', true).classList.add('ticket-name');
     text(76, 380, '票价 ' + money(def.price) + '     基础最高 ' + money(def.headlinePrize), 20, '#fff1d5', 600, 'center').classList.add('ticket-price-line');
@@ -565,7 +563,6 @@ function renderPreview() {
     scene.appendChild(motif);
     const barcode = box('ticket-barcode');
     scene.appendChild(barcode);
-    text(84, 1064, '一张成语 · 一句规则', 18, heading, 400);
 }
 function renderQuickGrowth() {
     const side = box('idiom-quick-growth');
