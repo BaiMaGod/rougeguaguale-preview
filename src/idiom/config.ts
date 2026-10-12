@@ -26,7 +26,7 @@ const rows: [string,string,bigint,bigint,Mode,string,string,string,number][] = [
  ['T18','一念天堂',10000000000n,1000000000000n,'destiny','选1门：天堂得1万亿，恶魔清空本局现金','凡间无奖；永久科技与历史图鉴保留','#eeaa83',3],
 ];
 export const CARDS: readonly CardDefinition[] = rows.map(([id,name,price,headlinePrize,mode,rule,hint,color,cells]) =>
- Object.freeze({id:id as CardId,name,price,headlinePrize,mode,rule,hint,color,cells,automationAllowedByDefault:id!=='T18',prizeTableVersion:'v3.1-base-draft-1'}));
+ Object.freeze({id:id as CardId,name,price,headlinePrize,mode,rule,hint,color,cells,automationAllowedByDefault:id!=='T18',prizeTableVersion:id==='T01'?'v3.5-amount-2':'v3.1-base-draft-1'}));
 export function cardDefinition(id:string): CardDefinition {
  const card=CARDS.find(c=>c.id===id);if(!card)throw new Error('未知卡种：'+id);return card;
 }
@@ -43,14 +43,19 @@ export function formatMoney(amount:bigint):string {
 export const BASE_WIN_CHANCE:Readonly<Record<string,number>>=Object.freeze({
  T02:.28,T03:.21,T04:.17,T05:.17,T06:.17,T07:.15,T08:.17,T10:.17,T12:.08,T15:.04,T16:.04,
 });
-export const AMOUNT_POOL=Object.freeze([{chance:.22,prize:5n},{chance:.07,prize:10n}]);
+export const AMOUNT_POOL_VERSION='v3.5-amount-2';
+export const LEGACY_AMOUNT_POOL=Object.freeze([{chance:.22,prize:5n},{chance:.07,prize:10n}]);
+export const AMOUNT_POOL=Object.freeze([{chance:.20,prize:5n},{chance:.10,prize:10n}]);
+export function amountPool(version?:string):typeof AMOUNT_POOL {
+ return version&&!version.includes(AMOUNT_POOL_VERSION)?LEGACY_AMOUNT_POOL:AMOUNT_POOL;
+}
 export const CASHOUT_SAFETY=Object.freeze([.82,.72,.55,.4,.3,.2]);
 export const CASHOUT_REWARDS=Object.freeze([100000n,150000n,250000n,500000n,750000n,1250000n]);
 export const DRAGON_EYE_TICKET_CHANCE=.24;
 export const LEDGER_POOL=Object.freeze([{chance:.25,target:3000000,prize:4000000n},{chance:.06,target:6000000,prize:8000000n},{chance:.01,target:10000000,prize:20000000n}]);
 export const DESTINY_POOL=Object.freeze({heaven:.006,devil:.15});
 export const DRAFT_PROBABILITIES: Record<string,string> = {
- T01:'5元22% · 10元7%', T02:'配对28%', T03:'乘积21：21%', T04:'我方较大17%',
+ T01:'5元20% · 10元10% · 总中奖30%', T02:'配对28%', T03:'乘积21：21%', T04:'我方较大17%',
  T05:'严格递增17%',T06:'达标17%',T07:'双6：15%',T08:'上7下8：17%',
  T09:'4雷6安全；连选3安全约16.67%',T10:'全图连通17%',
  T11:'每步条件安全率82% / 72% / 55% / 40% / 30% / 20%',

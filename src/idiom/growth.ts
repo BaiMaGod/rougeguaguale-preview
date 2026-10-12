@@ -1,4 +1,4 @@
-import {CARDS,cardDefinition,BASE_WIN_CHANCE,AMOUNT_POOL,LEDGER_POOL,CASHOUT_SAFETY,CASHOUT_REWARDS,DRAGON_EYE_TICKET_CHANCE,DESTINY_POOL,type CardId} from './config.js';
+import {CARDS,cardDefinition,BASE_WIN_CHANCE,amountPool,LEDGER_POOL,CASHOUT_SAFETY,CASHOUT_REWARDS,DRAGON_EYE_TICKET_CHANCE,DESTINY_POOL,type CardId} from './config.js';
 export const GROWTH_VERSION='v3.1-growth-draft-1';
 export const TECHS=['luck','jackpot','bonus','scratch'] as const;
 export type Tech=typeof TECHS[number];
@@ -58,13 +58,13 @@ export function addRebirthPoints(p:Progression,gain:number):Progression {
 export interface GrowthModel {factor:number;winChance:number;tiers:number[];safety:number[];bonusBps:number;rtp:number;}
 const modelCache=new Map<string,GrowthModel>();
 function weightedChance(p:number,m:number):number{return p*m/(1-p+p*m);}
-function modelAt(id:CardId,l:Levels,factor:number):GrowthModel {
+function modelAt(id:CardId,l:Levels,factor:number,version?:string):GrowthModel {
  const luck=1+.05*l.luck*factor,jackpot=1+.10*l.jackpot*factor;
  let winChance=weightedChance(BASE_WIN_CHANCE[id]??0,luck),tiers:number[]=[],safety:number[]=[];
  const def=cardDefinition(id),bonusBps=Number(id.slice(1))>=15?10000:10000+Math.floor(1000*l.bonus*factor);
  let baseRtp=winChance*Number(def.headlinePrize)/Number(def.price);
  if(id==='T01'||id==='T14'){
-  const pool=id==='T01'?AMOUNT_POOL:LEDGER_POOL,total=pool.reduce((s,t)=>s+t.chance,0);
+  const pool=id==='T01'?amountPool(version):LEDGER_POOL,total=pool.reduce((s,t)=>s+t.chance,0);
   winChance=weightedChance(total,luck);
   const weights=pool.map((t,i)=>t.chance*(i===pool.length-1?jackpot:1)),sum=weights.reduce((a,b)=>a+b,0);
   tiers=weights.map(w=>w/sum);baseRtp=winChance*pool.reduce((s,t,i)=>s+tiers[i]*Number(t.prize),0)/Number(def.price);
@@ -79,29 +79,34 @@ function modelAt(id:CardId,l:Levels,factor:number):GrowthModel {
  if(id==='T18')baseRtp=DESTINY_POOL.heaven*100;
  return {factor,winChance,tiers,safety,bonusBps,rtp:baseRtp*bonusBps/10000};
 }
+/** Preserve T01's existing eight percentage points of growth headroom above its
+ * explicitly configured base return. Other cards retain the 98% cap. */
+export function growthRtpCap(id:CardId,version?:string):number {
+ return id==='T01'&&amountPool(version)[0].chance===.20?1.08:.98;
+}
 /** Scale all applicable money/probability gains together; never reduce base luck.
- * Every blind cashout policy and every card retain <=98% theoretical cash RTP.
+ * The cap follows growthRtpCap, including the revised T01 base prize pool.
  * Choice boards and T18's devil probability are deliberately untouched. */
-export function growthModel(id:CardId,levels:Levels):GrowthModel {
+export function growthModel(id:CardId,levels:Levels,version?:string):GrowthModel {
  readLevels(levels);cardDefinition(id);
- const key=id+':'+TECHS.map(t=>levels[t]).join(',');const cached=modelCache.get(key);if(cached)return cached;
+ const key=id+':'+(id==='T01'?amountPool(version)[0].chance:'')+':'+TECHS.map(t=>levels[t]).join(',');const cached=modelCache.get(key);if(cached)return cached;
  // Release the available RTP headroom gradually. Mid and max upgrades remain
  // distinct instead of every early upgrade immediately hitting the final cap.
  const applicable:Tech[]=[];
  if(BASE_WIN_CHANCE[id]!==undefined||['T01','T11','T13','T14'].includes(id))applicable.push('luck');
  if(['T01','T14'].includes(id))applicable.push('jackpot');
  if(Number(id.slice(1))<15)applicable.push('bonus');
- const base=modelAt(id,zeroLevels(),0).rtp;
+ const base=modelAt(id,zeroLevels(),0,version).rtp;
  const progress=applicable.length?applicable.reduce((s,t)=>s+levels[t],0)/(10*applicable.length):0;
- const limit=base+(.98-base)*progress;
- const full=modelAt(id,levels,1);if(full.rtp<=limit){modelCache.set(key,full);return full;}
+ const limit=base+(growthRtpCap(id,version)-base)*progress;
+ const full=modelAt(id,levels,1,version);if(full.rtp<=limit){modelCache.set(key,full);return full;}
  let low=0,high=1;
- for(let i=0;i<40;i++){const mid=(low+high)/2;if(modelAt(id,levels,mid).rtp<=limit)low=mid;else high=mid;}
- const result=modelAt(id,levels,low);modelCache.set(key,result);return result;
+ for(let i=0;i<40;i++){const mid=(low+high)/2;if(modelAt(id,levels,mid,version).rtp<=limit)low=mid;else high=mid;}
+ const result=modelAt(id,levels,low,version);modelCache.set(key,result);return result;
 }
-export function boostedPrize(prize:bigint,id:CardId,levels?:Levels,roll=1):bigint {
+export function boostedPrize(prize:bigint,id:CardId,levels?:Levels,roll=1,version?:string):bigint {
  if(!levels)return prize;
- const scaled=prize*BigInt(growthModel(id,levels).bonusBps);
+ const scaled=prize*BigInt(growthModel(id,levels,version).bonusBps);
  return scaled/10000n+(roll<Number(scaled%10000n)/10000?1n:0n);
 }
 export function scratchTool(level:number):{name:string;width:number;area:number} {

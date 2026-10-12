@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {CARDS,BASE_WIN_CHANCE,AMOUNT_POOL,CASHOUT_SAFETY,CASHOUT_REWARDS,LEDGER_POOL,DESTINY_POOL,DRAGON_EYE_TICKET_CHANCE} from '../build/idiom/config.js';
 import {createIdiomTicket} from '../build/idiom/generator.js';
 import {resolveTicket,resolveBaseTicket,revealCell,cashOut} from '../build/idiom/resolver.js';
-import {growthModel,zeroLevels} from '../build/idiom/growth.js';
+import {growthModel,growthRtpCap,zeroLevels} from '../build/idiom/growth.js';
 const samples=Number(process.env.IDIOM_SAMPLES??100000);
 assert.ok(Number.isSafeInteger(samples)&&samples>=10000);
 function finish(t,mode,stopAt=3){
@@ -30,7 +30,7 @@ for(const def of CARDS){
  const rtp=Number(payout)/Number(def.price)/samples;
  const se=Math.sqrt(Math.max(0,sumSquared/samples-rtp*rtp)/samples);
  assert.ok(Math.abs(rtp-theory)<=6*se+.005,`${def.id}: RTP ${rtp} differs from ${theory}`);
- assert.ok(theory<1,`${def.id} base prize pool returns >=100%`);
+ assert.ok(def.id==='T01'?Math.abs(theory-1)<1e-10:theory<1,`${def.id} base prize pool return`);
  if(def.id==='T18')assert.ok(Math.abs(devils/samples-DESTINY_POOL.devil)<.01);
  output.push({id:def.id,name:def.name,samples,winRate:wins/samples,rtp,theory,bankruptcyRate:devils/samples});
 }
@@ -59,7 +59,7 @@ for(const level of [5,10]){
   const rtp=Number(payout)/Number(def.price)/samples,se=Math.sqrt(Math.max(0,sumSquared/samples-rtp*rtp)/samples);
   // Integer currency rounds down at payout; at most 1 currency unit per ticket.
   assert.ok(Math.abs(rtp-theory)<=6*se+.005+1/Number(def.price),`${def.id} Lv.${level} RTP ${rtp} differs from ${theory}`);
-  assert.ok(theory<=.98+1e-10);
+  assert.ok(theory<=growthRtpCap(def.id)+1e-10);
   const expectedWin=def.id==='T09'?1/6:def.id==='T17'?.008:def.id==='T18'?.006:def.id==='T13'?model.winChance/3:def.id==='T11'?model.safety.slice(0,stopAt).reduce((s,p)=>s*p,1):model.winChance;
   assert.ok(Math.abs(wins/samples-expectedWin)<6*Math.sqrt(expectedWin*(1-expectedWin)/samples)+.001,def.id+' growth win frequency');
   if(model.tiers.length){
@@ -74,4 +74,4 @@ for(const level of [5,10]){
  }
 }
 console.log(JSON.stringify({poolVersion:'v3.1-growth-draft-1',samplesPerCard:samples,totalTickets:samples*60,cards:output,stopStrategies,growth,
- notes:['Base, mid and max growth pools tested. Positive cash RTP capped at 98% for every card and every blind cashout stopping policy. Integer rounding may lower actual return.','T18 RTP excludes cash lost to bankruptcy; devil chance stays 15%. Recovery grants, automation throughput and reincarnation require separate phase balancing.']},null,2));
+ notes:['Base, mid and max growth pools tested. T01 base RTP is 100%, with its existing 8 percentage points of growth headroom (108% maximum); other cards and every blind cashout policy retain the 98% cap.','T18 RTP excludes cash lost to bankruptcy; devil chance stays 15%. Recovery grants, automation throughput and reincarnation require separate phase balancing.']},null,2));

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {resolve,extname} from 'node:path';
+import {CARDS} from '../build/idiom/config.js';
+import {ticketOdds} from '../build/idiom/probability.js';
 const base=resolve('.'),out=resolve('qa-evidence/art-v35');await mkdir(out,{recursive:true});
 const mime={'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.webp':'image/webp'};
 const server=createServer(async(req,res)=>{try{let path=resolve(base,'.'+new URL(req.url,'http://localhost').pathname);if(path===base)path=resolve(base,'index.html');assert.ok(path.startsWith(base+'/'));res.setHeader('Content-Type',mime[extname(path)]??'application/octet-stream');res.end(await readFile(path));}catch{res.statusCode=404;res.end('Not found');}});
@@ -18,6 +20,17 @@ async function exercise(b,profile){
  assert.ok(Math.abs(frame.x-(view.width-frame.width)/2)<1,'Portrait frame is centered');
  assert.ok(frame.y>=-1&&frame.x>=-1&&frame.x+frame.width<=view.width+1&&frame.y+frame.height<=view.height+1,'Portrait frame fits viewport');
  assert.equal(await page.locator('.idiom-quick-growth').isVisible(),false);
+ assert.equal(await page.locator('.idiom-card-odds').count(),18);
+ for(const card of CARDS){
+  await page.locator(`.idiom-card[data-card-id="${card.id}"]`).click();
+  const odds=page.locator('.ticket-odds');
+  assert.equal(await odds.locator('.ticket-odds-base').textContent(),'基础'+ticketOdds(card.id).summary);
+  assert.equal(await odds.locator('.ticket-odds-details').count(),ticketOdds(card.id).details?1:0);
+  const panel=await odds.boundingBox(),table=await page.locator('.idiom-worktable').boundingBox();
+  assert.ok(panel.x>=table.x-1&&panel.y>=table.y-1&&panel.x+panel.width<=table.x+table.width+1&&panel.y+panel.height<=table.y+table.height+1,card.id+' odds must fit the worktable');
+ }
+ await page.locator('.idiom-card[data-card-id="T01"]').click();
+ assert.equal(await page.locator('.ticket-odds-details').textContent(),'5元 20% · 10元 10%');
  const resourceValuesClear=await page.locator('.idiom-resource').evaluateAll(elements=>elements.every(e=>{
   const icon=getComputedStyle(e,'::before');if(icon.display==='none')return true;
   const r=e.getBoundingClientRect(),value=e.querySelector('.idiom-resource-value').getBoundingClientRect();

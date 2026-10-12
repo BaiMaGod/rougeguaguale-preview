@@ -8,6 +8,7 @@ import type {TicketCell} from './idiom/generator.js';
 import {DRAFT_EVENTS,boostInfo,publicSafeIndex} from './idiom/run-build.js';
 import {rebirthPreview,performRebirth,chooseRunBoost} from './idiom/rebirth.js';
 import {REBIRTH_BONUSES} from './idiom/rebirth-state.js';
+import {ticketOdds} from './idiom/probability.js';
 
 declare const Laya:any;
 const W=750,H=1334;
@@ -33,7 +34,7 @@ scene=document.createElement('div');scene.className='ticket-print-layer';ticketS
 const money=(n:bigint)=>formatMoney(n)+'元';
 const multiplier=(bps:number)=>(bps/10000).toFixed(4).replace(/0+$/,'').replace(/\.$/,'');
 function sizeToWindow():void {
- const bounds=worktable.getBoundingClientRect(),scale=Math.min((bounds.width-16)/W,(bounds.height-12)/940);
+ const bounds=worktable.getBoundingClientRect(),scale=Math.min((bounds.width-16)/W,(bounds.height-12)/1080);
  ticketStage.style.transform=`translate(-50%,-50%) scale(${Math.max(.1,scale)})`;
 }
 function text(x:number,y:number,value:string,size=26,color=C.paper,width=600,align='left',bold=false):any {
@@ -91,13 +92,18 @@ function onReveal(index:number,nonce:string):void {
  });
 }
 function growthSummary(id:CardId,levels=state.progression.levels):string {
- const m=growthModel(id,levels),mode=cardDefinition(id).mode;
- const probability=(p:number)=>(p*100).toFixed(2)+'%';
- let pool=DRAFT_PROBABILITIES[id];
- if(m.winChance>0)pool=(mode==='eye'?'有真眼 '+probability(m.winChance)+' · 盲选中奖 '+probability(m.winChance/3):'中奖 '+probability(m.winChance));
- if(m.tiers.length)pool+=' · 中奖后最高档 '+probability(m.tiers.at(-1)!);
- if(mode==='cashout')pool='每步安全 '+m.safety.map(probability).join(' / ');
- return pool+' · 奖金 ×'+multiplier(m.bonusBps);
+ const m=growthModel(id,levels),odds=ticketOdds(id,levels);
+ return odds.summary+(odds.details?' · '+odds.details:'')+' · 奖金 ×'+multiplier(m.bonusBps);
+}
+function renderProbability(id:CardId,levels=state.progression.levels,version?:string):void {
+ const base=ticketOdds(id,zeroLevels(),version),current=ticketOdds(id,levels,version),d=box('ticket-odds');
+ d.dataset.cardId=id;
+ p(d,'基础'+base.summary,'ticket-odds-base');
+ if(base.details)p(d,base.details,'ticket-odds-details');
+ if(Math.abs(current.winChance-base.winChance)>1e-10||current.details!==base.details){
+  p(d,'成长后'+current.summary+(current.details?' · '+current.details:''),'ticket-odds-current');
+ }
+ scene!.appendChild(d);
 }
 interface Slot {index:number;x:number;y:number;size:number;label:string;heart?:boolean;}
 function slots(id:CardId):Slot[] {
@@ -142,13 +148,14 @@ function ticketView():void {
  text(83,roomy?284:287,def.name,roomy?78:54,'#fff1d5',580,'center',true).classList.add('ticket-name');
  text(76,roomy?380:345,'票价 '+money(def.price)+'     基础最高 '+money(def.headlinePrize),20,'#fff1d5',600,'center').classList.add('ticket-price-line');
  text(66,roomy?430:390,def.rule,def.rule.length>24?22:25,C.ink,618,'center',true);
- const tool=scratchTool(t.growth?.scratch??0),model=growthModel(t.cardId,t.growth??zeroLevels());
+ const tool=scratchTool(t.growth?.scratch??0),model=growthModel(t.cardId,t.growth??zeroLevels(),t.prizeTableVersion);
  const hint=text(66,roomy?472:430,(t.boost?'本票强化：'+boostInfo(t.boost).name:def.hint)+'\n'+tool.name+' Lv.'+(t.growth?.scratch??0)+' · 本票奖金 ×'+multiplier(model.bonusBps)+(t.boost==='rise'?'（翻倍后封顶3000元）':''),19,'#7c715f',618,'center');hint.style.height='55px';
  const motif=box('ticket-motif');motif.style.backgroundImage=`url('./assets/ticket-${def.id.toLowerCase()}.svg')`;scene!.appendChild(motif);
  if(['amount','heart','pair','multiply','compare','dice','hearts','eye','double','destiny'].includes(def.mode)){
   const vignette=box('ticket-vignette');vignette.setAttribute('aria-hidden','true');scene!.appendChild(vignette);
  }
  const barcode=box('ticket-barcode');barcode.setAttribute('aria-hidden','true');scene!.appendChild(barcode);
+ renderProbability(t.cardId,t.growth??zeroLevels(),t.prizeTableVersion);
  if(def.mode==='multiply')text(336,691,'×',38,C.ink,78,'center',true);
  if(def.mode==='compare')text(336,691,'VS',29,C.ink,78,'center',true);
  if(def.mode==='sum')text(100,970,'目标 100  ·  当前 '+shownAccrued.toString(),24,C.ink,550,'center',true);
@@ -191,6 +198,8 @@ function renderCatalog():void {
   b.className='idiom-card'+(unlocked?'':' locked')+(def.id===selected?' selected':'');b.dataset.cardId=def.id;b.style.setProperty('--accent',def.color);
   p(b,def.id+' · '+(i<6?'入门':i<12?'发展':i<16?'冲刺':'终极'),'idiom-tier');p(b,def.name,'idiom-card-name');p(b,'票价 '+money(def.price),'idiom-price');
   p(b,def.rule,'idiom-rule');p(b,'基础最高 '+money(def.headlinePrize),'idiom-prize');
+  p(b,ticketOdds(def.id).summary,'idiom-card-odds');
+  b.title=def.name+' · 基础'+ticketOdds(def.id).summary+' · '+ticketOdds(def.id).details;
   p(b,unlocked?`本局完成 ${state.runStats[def.id]?.played??0} 张 · 历史中奖 ${state.stats[def.id]?.won??0} 次`:'解锁：前一卡完成3张 + 本局最高现金'+money(def.price*2n),'idiom-lock');
   b.addEventListener('click',()=>{selected=def.id;screen='catalog';notice=unlocked?'':'解锁条件：前一卡完成3张，本局最高现金达到 '+money(def.price*2n);render();});grid.appendChild(b);
  });
@@ -325,6 +334,7 @@ function renderPreview():void {
  const vignette=box('ticket-vignette');scene!.appendChild(vignette);
  const motif=box('ticket-motif');motif.style.backgroundImage=`url('./assets/ticket-${def.id.toLowerCase()}.svg')`;scene!.appendChild(motif);
  const barcode=box('ticket-barcode');scene!.appendChild(barcode);
+ renderProbability(selected);
 }
 function renderQuickGrowth():void {
  const side=box('idiom-quick-growth');controls.appendChild(side);

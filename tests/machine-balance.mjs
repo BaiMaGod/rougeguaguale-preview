@@ -36,4 +36,4 @@ for(const level of [1,2,3,4])for(const def of CARDS.filter(c=>c.id!=='T18')){
  rows.push({cardId:def.id,level,samples,rtp,theory,ticketsPerMinute:60000/MACHINE_LEVELS[level].ms,
   expectedCashPerMinute:Number(def.price)*(theory-1)*60000/MACHINE_LEVELS[level].ms});
 }
-console.log(JSON.stringify({totalTickets:samples*68,samplesPerCardAndLevel:samples,rows,notes:['Machine fees excluded from ticket net return. Higher levels accelerate the same negative-expectation pools. Budget/reserve/count stops remain mandatory.','Level 1 requires explicit queued tasks and human claim; human reaction time is excluded. No offline processing or T18 automation.']},null,2));
+console.log(JSON.stringify({totalTickets:samples*68,samplesPerCardAndLevel:samples,rows,notes:['Machine fees excluded from ticket net return. T01 has a 100% base RTP; other pools retain their existing return. Budget/reserve/count stops remain mandatory.','Level 1 requires explicit queued tasks and human claim; human reaction time is excluded. No offline processing or T18 automation.']},null,2));

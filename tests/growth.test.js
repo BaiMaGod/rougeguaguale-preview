@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CARDS,DESTINY_POOL} from '../build/idiom/config.js';
+import {CARDS,DESTINY_POOL,AMOUNT_POOL_VERSION} from '../build/idiom/config.js';
 import {createIdiomTicket} from '../build/idiom/generator.js';
 import {resolveTicket,resolveBaseTicket,revealCell,cashOut} from '../build/idiom/resolver.js';
 import {newGame,purchaseTicket,upgradeTech,settleActive,serializeGame,restoreGame,loadGame,SAVE_KEY} from '../build/idiom/wallet.js';
-import {TECHS,MILESTONES,COSTS,newProgression,zeroLevels,growthModel,scratchTool,awardMilestones,restoreProgression,upgradeProgression,GROWTH_VERSION} from '../build/idiom/growth.js';
+import {TECHS,MILESTONES,COSTS,newProgression,zeroLevels,growthModel,growthRtpCap,scratchTool,awardMilestones,restoreProgression,upgradeProgression,GROWTH_VERSION} from '../build/idiom/growth.js';
 function richProgression(level=0){
  const earned=MILESTONES.reduce((s,m)=>s+m.points,0),spent=4*COSTS.slice(0,level).reduce((s,c)=>s+c,0);
  return {points:earned-spent,earned,levels:Object.fromEntries(TECHS.map(t=>[t,level])),claimed:MILESTONES.map(m=>m.id)};
@@ -53,7 +53,7 @@ for(const def of CARDS){
   const old=createIdiomTicket(def.id,'old-'+def.id,'old');
   for(const level of [0,5,10]){
    const levels=Object.fromEntries(TECHS.map(t=>[t,level])),m=growthModel(def.id,levels);
-   assert.ok(m.rtp<=.98+1e-10);assert.ok(m.winChance>=0&&m.winChance<1);assert.ok(m.bonusBps>=10000);
+   assert.ok(m.rtp<=growthRtpCap(def.id)+1e-10);assert.ok(m.winChance>=0&&m.winChance<1);assert.ok(m.bonusBps>=10000);
    if(m.tiers.length)assert.ok(Math.abs(m.tiers.reduce((a,b)=>a+b,0)-1)<1e-10);
    assert.ok(m.safety.every(p=>p>0&&p<1));
    const s={...newGame('snapshot'),cash:2000000000000n,peak:2000000000000n,unlockedCount:18,progression:richProgression(level)};
@@ -69,7 +69,7 @@ test('升级中途不影响旧票金额、布局、工具；新票获得新科�
  const t=s.active;for(const tech of TECHS)s=upgradeTech(s,tech);
  assert.equal(s.active,t);assert.deepEqual(restoreGame(serializeGame(s)).active,t);
  s=settleActive({...s,active:finish(t)});const next=purchaseTicket(s,'T01');
- assert.equal(next.active.prizeTableVersion,GROWTH_VERSION);assert.deepEqual(next.active.growth,{luck:1,jackpot:1,bonus:1,scratch:1});
+ assert.equal(next.active.prizeTableVersion,GROWTH_VERSION+':'+AMOUNT_POOL_VERSION);assert.deepEqual(next.active.growth,{luck:1,jackpot:1,bonus:1,scratch:1});
 });
 test('V3.1旧存档完整迁移并补领，保留原始备份和待刮票',()=>{
  const t=createIdiomTicket('T01','migration','legacy');const s={...newGame('legacy'),version:31,bought:4,active:t,stats:{T01:{played:3,won:1,best:10n}},unlockedCount:2,peak:1000n};

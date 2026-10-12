@@ -62,9 +62,9 @@ export function resolveBaseTicket(t:TicketInstance):Resolution {
 }
 export function resolveTicket(t:TicketInstance):Resolution {
  const base=resolveBaseTicket(t);
- const grown=boostedPrize(base.prize,t.cardId,t.growth,t.bonusRoll);
+ const grown=boostedPrize(base.prize,t.cardId,t.growth,t.bonusRoll,t.prizeTableVersion);
  return {...base,prize:t.boost==='rise'&&grown>3000n?3000n:grown,
-  accrued:cardDefinition(t.cardId).mode==='cashout'?boostedPrize(base.accrued,t.cardId,t.growth,t.bonusRoll):base.accrued};
+  accrued:cardDefinition(t.cardId).mode==='cashout'?boostedPrize(base.accrued,t.cardId,t.growth,t.bonusRoll,t.prizeTableVersion):base.accrued};
 }
 export function canScratch(t:TicketInstance,index:number):boolean {
  if(t.settled||!Number.isInteger(index)||index<0||index>=t.committedLayout.length||t.revealed.includes(index))return false;
