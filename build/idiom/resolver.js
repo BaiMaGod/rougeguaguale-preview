@@ -72,7 +72,10 @@ export function resolveBaseTicket(t) {
     if (!full)
         return play('继续刮开银层');
     switch (def.mode) {
-        case 'amount': return result(values[0] > 0, values[0] ? '刮出现金！' : '本票未中奖', BigInt(layout[0].value));
+        case 'amount': {
+            const win = values[0] === 5 || values[0] === 10;
+            return result(win, win ? '刮出现金！' : '刮出 ' + layout[0].value + '，仅5和10中奖', win ? BigInt(layout[0].value) : 0n);
+        }
         case 'multiply': return result(values[0] * values[1] === 21, `${values[0]} × ${values[1]} = ${values[0] * values[1]}`);
         case 'compare': return result(values[0] > values[1], `我方 ${values[0]} ${values[0] > values[1] ? '>' : values[0] === values[1] ? '=' : '<'} 对手 ${values[1]}`);
         case 'rise': return result(values[0] < values[1] && values[1] < values[2], values.join(' → '), t.boost === 'rise' ? 3000n : def.headlinePrize);
@@ -86,9 +89,9 @@ export function resolveBaseTicket(t) {
 }
 export function resolveTicket(t) {
     const base = resolveBaseTicket(t);
-    const grown = boostedPrize(base.prize, t.cardId, t.growth, t.bonusRoll);
+    const grown = boostedPrize(base.prize, t.cardId, t.growth, t.bonusRoll, t.prizeTableVersion);
     return { ...base, prize: t.boost === 'rise' && grown > 3000n ? 3000n : grown,
-        accrued: cardDefinition(t.cardId).mode === 'cashout' ? boostedPrize(base.accrued, t.cardId, t.growth, t.bonusRoll) : base.accrued };
+        accrued: cardDefinition(t.cardId).mode === 'cashout' ? boostedPrize(base.accrued, t.cardId, t.growth, t.bonusRoll, t.prizeTableVersion) : base.accrued };
 }
 export function canScratch(t, index) {
     if (t.settled || !Number.isInteger(index) || index < 0 || index >= t.committedLayout.length || t.revealed.includes(index))

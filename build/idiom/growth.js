@@ -1,4 +1,4 @@
-import { CARDS, cardDefinition, BASE_WIN_CHANCE, AMOUNT_POOL, LEDGER_POOL, CASHOUT_SAFETY, CASHOUT_REWARDS, DRAGON_EYE_TICKET_CHANCE, DESTINY_POOL } from './config.js';
+import { CARDS, cardDefinition, BASE_WIN_CHANCE, amountPool, LEDGER_POOL, CASHOUT_SAFETY, CASHOUT_REWARDS, DRAGON_EYE_TICKET_CHANCE, DESTINY_POOL } from './config.js';
 export const GROWTH_VERSION = 'v3.1-growth-draft-1';
 export const TECHS = ['luck', 'jackpot', 'bonus', 'scratch'];
 export const COSTS = [1, 2, 3, 4, 6, 8, 10, 12, 15, 20];
@@ -86,13 +86,13 @@ export function addRebirthPoints(p, gain) {
 }
 const modelCache = new Map();
 function weightedChance(p, m) { return p * m / (1 - p + p * m); }
-function modelAt(id, l, factor) {
+function modelAt(id, l, factor, version) {
     const luck = 1 + .05 * l.luck * factor, jackpot = 1 + .10 * l.jackpot * factor;
     let winChance = weightedChance(BASE_WIN_CHANCE[id] ?? 0, luck), tiers = [], safety = [];
     const def = cardDefinition(id), bonusBps = Number(id.slice(1)) >= 15 ? 10000 : 10000 + Math.floor(1000 * l.bonus * factor);
     let baseRtp = winChance * Number(def.headlinePrize) / Number(def.price);
     if (id === 'T01' || id === 'T14') {
-        const pool = id === 'T01' ? AMOUNT_POOL : LEDGER_POOL, total = pool.reduce((s, t) => s + t.chance, 0);
+        const pool = id === 'T01' ? amountPool(version) : LEDGER_POOL, total = pool.reduce((s, t) => s + t.chance, 0);
         winChance = weightedChance(total, luck);
         const weights = pool.map((t, i) => t.chance * (i === pool.length - 1 ? jackpot : 1)), sum = weights.reduce((a, b) => a + b, 0);
         tiers = weights.map(w => w / sum);
@@ -114,13 +114,18 @@ function modelAt(id, l, factor) {
         baseRtp = DESTINY_POOL.heaven * 100;
     return { factor, winChance, tiers, safety, bonusBps, rtp: baseRtp * bonusBps / 10000 };
 }
+/** Preserve T01's existing eight percentage points of growth headroom above its
+ * explicitly configured base return. Other cards retain the 98% cap. */
+export function growthRtpCap(id, version) {
+    return id === 'T01' && amountPool(version)[0].chance === .20 ? 1.08 : .98;
+}
 /** Scale all applicable money/probability gains together; never reduce base luck.
- * Every blind cashout policy and every card retain <=98% theoretical cash RTP.
+ * The cap follows growthRtpCap, including the revised T01 base prize pool.
  * Choice boards and T18's devil probability are deliberately untouched. */
-export function growthModel(id, levels) {
+export function growthModel(id, levels, version) {
     readLevels(levels);
     cardDefinition(id);
-    const key = id + ':' + TECHS.map(t => levels[t]).join(',');
+    const key = id + ':' + (id === 'T01' ? amountPool(version)[0].chance : '') + ':' + TECHS.map(t => levels[t]).join(',');
     const cached = modelCache.get(key);
     if (cached)
         return cached;
@@ -133,10 +138,10 @@ export function growthModel(id, levels) {
         applicable.push('jackpot');
     if (Number(id.slice(1)) < 15)
         applicable.push('bonus');
-    const base = modelAt(id, zeroLevels(), 0).rtp;
+    const base = modelAt(id, zeroLevels(), 0, version).rtp;
     const progress = applicable.length ? applicable.reduce((s, t) => s + levels[t], 0) / (10 * applicable.length) : 0;
-    const limit = base + (.98 - base) * progress;
-    const full = modelAt(id, levels, 1);
+    const limit = base + (growthRtpCap(id, version) - base) * progress;
+    const full = modelAt(id, levels, 1, version);
     if (full.rtp <= limit) {
         modelCache.set(key, full);
         return full;
@@ -144,19 +149,19 @@ export function growthModel(id, levels) {
     let low = 0, high = 1;
     for (let i = 0; i < 40; i++) {
         const mid = (low + high) / 2;
-        if (modelAt(id, levels, mid).rtp <= limit)
+        if (modelAt(id, levels, mid, version).rtp <= limit)
             low = mid;
         else
             high = mid;
     }
-    const result = modelAt(id, levels, low);
+    const result = modelAt(id, levels, low, version);
     modelCache.set(key, result);
     return result;
 }
-export function boostedPrize(prize, id, levels, roll = 1) {
+export function boostedPrize(prize, id, levels, roll = 1, version) {
     if (!levels)
         return prize;
-    const scaled = prize * BigInt(growthModel(id, levels).bonusBps);
+    const scaled = prize * BigInt(growthModel(id, levels, version).bonusBps);
     return scaled / 10000n + (roll < Number(scaled % 10000n) / 10000 ? 1n : 0n);
 }
 export function scratchTool(level) {

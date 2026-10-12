@@ -1,5 +1,5 @@
 const rows = [
-    ['T01', '一五一十', 2n, 10n, 'amount', '刮出5得5元，刮出10得10元', '在大银层上来回刮擦', '#e5b46f', 1],
+    ['T01', '一五一十', 2n, 10n, 'amount', '仅5和10中奖，其他数字无奖', '在大银层上来回刮擦', '#e5b46f', 1],
     ['T02', '两全其美', 10n, 30n, 'pair', '3格中任意两个相同图案即中奖', '任意顺序刮开，配对只领一次', '#f4aa9b', 3],
     ['T03', '三七二十一', 30n, 120n, 'multiply', '两个数字相乘等于21即中奖', '刮开左右数字，自动显示乘积', '#a6ccbb', 2],
     ['T04', '一较高下', 100n, 500n, 'compare', '我方数字大于对手数字即中奖', '相同数字不中奖', '#a9bbeb', 2],
@@ -18,7 +18,7 @@ const rows = [
     ['T17', '一步登天', 100000000n, 10000000000n, 'ladder', '每层选1门，连续通过3层获得100亿元', '3层各5选1，中途选错本票失败', '#d7c8f5', 15],
     ['T18', '一念天堂', 10000000000n, 1000000000000n, 'destiny', '选1门：天堂得1万亿，恶魔清空本局现金', '凡间无奖；永久科技与历史图鉴保留', '#eeaa83', 3],
 ];
-export const CARDS = rows.map(([id, name, price, headlinePrize, mode, rule, hint, color, cells]) => Object.freeze({ id: id, name, price, headlinePrize, mode, rule, hint, color, cells, automationAllowedByDefault: id !== 'T18', prizeTableVersion: 'v3.1-base-draft-1' }));
+export const CARDS = rows.map(([id, name, price, headlinePrize, mode, rule, hint, color, cells]) => Object.freeze({ id: id, name, price, headlinePrize, mode, rule, hint, color, cells, automationAllowedByDefault: id !== 'T18', prizeTableVersion: id === 'T01' ? 'v3.5-amount-2:amount-suspense-1' : 'v3.1-base-draft-1' }));
 export function cardDefinition(id) {
     const card = CARDS.find(c => c.id === id);
     if (!card)
@@ -41,14 +41,21 @@ export function formatMoney(amount) {
 export const BASE_WIN_CHANCE = Object.freeze({
     T02: .28, T03: .21, T04: .17, T05: .17, T06: .17, T07: .15, T08: .17, T10: .17, T12: .08, T15: .04, T16: .04,
 });
-export const AMOUNT_POOL = Object.freeze([{ chance: .22, prize: 5n }, { chance: .07, prize: 10n }]);
+export const AMOUNT_POOL_VERSION = 'v3.5-amount-2';
+export const AMOUNT_SUSPENSE_VERSION = 'amount-suspense-1';
+export const AMOUNT_DECOYS = Object.freeze([50, 100, 500]);
+export const LEGACY_AMOUNT_POOL = Object.freeze([{ chance: .22, prize: 5n }, { chance: .07, prize: 10n }]);
+export const AMOUNT_POOL = Object.freeze([{ chance: .20, prize: 5n }, { chance: .10, prize: 10n }]);
+export function amountPool(version) {
+    return version && !version.includes(AMOUNT_POOL_VERSION) ? LEGACY_AMOUNT_POOL : AMOUNT_POOL;
+}
 export const CASHOUT_SAFETY = Object.freeze([.82, .72, .55, .4, .3, .2]);
 export const CASHOUT_REWARDS = Object.freeze([100000n, 150000n, 250000n, 500000n, 750000n, 1250000n]);
 export const DRAGON_EYE_TICKET_CHANCE = .24;
 export const LEDGER_POOL = Object.freeze([{ chance: .25, target: 3000000, prize: 4000000n }, { chance: .06, target: 6000000, prize: 8000000n }, { chance: .01, target: 10000000, prize: 20000000n }]);
 export const DESTINY_POOL = Object.freeze({ heaven: .006, devil: .15 });
 export const DRAFT_PROBABILITIES = {
-    T01: '5元22% · 10元7%', T02: '配对28%', T03: '乘积21：21%', T04: '我方较大17%',
+    T01: '5元20% · 10元10% · 总中奖30%', T02: '配对28%', T03: '乘积21：21%', T04: '我方较大17%',
     T05: '严格递增17%', T06: '达标17%', T07: '双6：15%', T08: '上7下8：17%',
     T09: '4雷6安全；连选3安全约16.67%', T10: '全图连通17%',
     T11: '每步条件安全率82% / 72% / 55% / 40% / 30% / 20%',

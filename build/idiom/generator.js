@@ -1,11 +1,13 @@
-import { cardDefinition, BASE_WIN_CHANCE, AMOUNT_POOL, CASHOUT_SAFETY, CASHOUT_REWARDS, DRAGON_EYE_TICKET_CHANCE, LEDGER_POOL, DESTINY_POOL } from './config.js';
+import { cardDefinition, BASE_WIN_CHANCE, amountPool, AMOUNT_POOL_VERSION, AMOUNT_SUSPENSE_VERSION, AMOUNT_DECOYS, CASHOUT_SAFETY, CASHOUT_REWARDS, DRAGON_EYE_TICKET_CHANCE, LEDGER_POOL, DESTINY_POOL } from './config.js';
 import { growthModel, readLevels, GROWTH_VERSION } from './growth.js';
 import { validBoost, RUN_BOOST_VERSION } from './run-build.js';
 import { seededRandom } from './random.js';
 export { seededRandom } from './random.js';
-export function createIdiomTicket(cardId, seed, nonce, growth, boost) {
+export function createIdiomTicket(cardId, seed, nonce, growth, boost, version) {
     const def = cardDefinition(cardId), rng = seededRandom(seed);
-    const levels = growth ? readLevels(growth) : undefined, model = levels ? growthModel(cardId, levels) : undefined;
+    const levels = growth ? readLevels(growth) : undefined, model = levels ? growthModel(cardId, levels, version) : undefined;
+    const pool = amountPool(version), legacyAmount = cardId === 'T01' && !!version && !version.includes(AMOUNT_POOL_VERSION);
+    const suspenseAmount = cardId === 'T01' && (!version || version.includes(AMOUNT_SUSPENSE_VERSION));
     const wins = () => rng() < (model?.winChance ?? BASE_WIN_CHANCE[cardId]);
     const int = (min, max) => min + Math.floor(rng() * (max - min + 1));
     const cell = (kind, value) => ({ kind, value: String(value) });
@@ -14,8 +16,9 @@ export function createIdiomTicket(cardId, seed, nonce, growth, boost) {
     switch (def.mode) {
         case 'amount': {
             const r = rng();
-            const prize = model ? (r < model.winChance ? (r / model.winChance < model.tiers[0] ? 5n : 10n) : 0n) : r < AMOUNT_POOL[0].chance ? AMOUNT_POOL[0].prize : r < AMOUNT_POOL[0].chance + AMOUNT_POOL[1].chance ? AMOUNT_POOL[1].prize : 0n;
-            layout = [cell('money', prize)];
+            const prize = model ? (r < model.winChance ? (r / model.winChance < model.tiers[0] ? 5n : 10n) : 0n) : r < pool[0].chance ? pool[0].prize : r < pool[0].chance + pool[1].chance ? pool[1].prize : 0n;
+            // Decoys use an independent draw, preserving the winning roll and bonus roll.
+            layout = [prize === 0n && suspenseAmount ? cell('number', AMOUNT_DECOYS[Math.floor(seededRandom(seed + ':amount-decoy')() * AMOUNT_DECOYS.length)]) : cell('money', prize)];
             break;
         }
         case 'pair': {
@@ -130,5 +133,7 @@ export function createIdiomTicket(cardId, seed, nonce, growth, boost) {
         layout[0] = { ...layout[0], value: String(Number(layout[0].value) + 2) };
     const safeIndices = boost === 'hint' ? layout.flatMap((c, i) => c.kind === 'safe' ? [i] : []) : [];
     const publicSafeIndex = boost === 'hint' ? safeIndices[Math.floor(seededRandom(seed + ':public-safe')() * safeIndices.length)] : undefined;
-    return { cardId, nonce, rngSeed: seed, prizeTableVersion: (boost ? RUN_BOOST_VERSION + ':' : '') + (levels ? GROWTH_VERSION : def.prizeTableVersion), committedLayout: layout, revealed: [], choices: [], cashout: false, settled: false, ...(levels ? { growth: levels, bonusRoll: rng() } : {}), ...(boost ? { boost } : {}), ...(publicSafeIndex !== undefined ? { publicSafeIndex } : {}) };
+    const amountVersion = AMOUNT_POOL_VERSION + (suspenseAmount ? ':' + AMOUNT_SUSPENSE_VERSION : '');
+    const table = levels ? GROWTH_VERSION + (cardId === 'T01' && !legacyAmount ? ':' + amountVersion : '') : legacyAmount ? 'v3.1-base-draft-1' : cardId === 'T01' ? amountVersion : def.prizeTableVersion;
+    return { cardId, nonce, rngSeed: seed, prizeTableVersion: (boost ? RUN_BOOST_VERSION + ':' : '') + table, committedLayout: layout, revealed: [], choices: [], cashout: false, settled: false, ...(levels ? { growth: levels, bonusRoll: rng() } : {}), ...(boost ? { boost } : {}), ...(publicSafeIndex !== undefined ? { publicSafeIndex } : {}) };
 }

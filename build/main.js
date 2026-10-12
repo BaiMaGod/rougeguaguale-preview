@@ -7,6 +7,7 @@ import { buyMachine, configureMachine, enqueueMachine, clearMachineQueue, pauseM
 import { DRAFT_EVENTS, boostInfo, publicSafeIndex } from './idiom/run-build.js';
 import { rebirthPreview, performRebirth, chooseRunBoost } from './idiom/rebirth.js';
 import { REBIRTH_BONUSES } from './idiom/rebirth-state.js';
+import { ticketOdds, formatProbability } from './idiom/probability.js';
 const W = 750, H = 1334;
 const C = { bg: '#141c2c', paper: '#f6e9ca', ink: '#4b3526', gold: '#edc580', muted: '#a9b9cc' };
 const root = document.getElementById('game-root');
@@ -154,16 +155,20 @@ function onReveal(index, nonce) {
     });
 }
 function growthSummary(id, levels = state.progression.levels) {
-    const m = growthModel(id, levels), mode = cardDefinition(id).mode;
-    const probability = (p) => (p * 100).toFixed(2) + '%';
-    let pool = DRAFT_PROBABILITIES[id];
-    if (m.winChance > 0)
-        pool = (mode === 'eye' ? '有真眼 ' + probability(m.winChance) + ' · 盲选中奖 ' + probability(m.winChance / 3) : '中奖 ' + probability(m.winChance));
-    if (m.tiers.length)
-        pool += ' · 中奖后最高档 ' + probability(m.tiers.at(-1));
-    if (mode === 'cashout')
-        pool = '每步安全 ' + m.safety.map(probability).join(' / ');
-    return pool + ' · 奖金 ×' + multiplier(m.bonusBps);
+    const m = growthModel(id, levels), odds = ticketOdds(id, levels);
+    return odds.summary + (odds.details ? ' · ' + odds.details : '') + ' · 奖金 ×' + multiplier(m.bonusBps);
+}
+function renderProbability(id, levels = state.progression.levels, version, y = 479) {
+    const base = ticketOdds(id, zeroLevels(), version), current = ticketOdds(id, levels, version), d = box('ticket-odds');
+    d.dataset.cardId = id;
+    d.style.top = y + 'px';
+    const amountChanged = id === 'T01' && current.details !== base.details;
+    p(d, amountChanged ? '基础' + base.summary + ' · ' + base.details : '基础' + base.summary + (Math.abs(current.winChance - base.winChance) > 1e-10 ? ' · 成长后' + current.summary : ''), 'ticket-odds-base');
+    const safety = growthModel(id, zeroLevels(), version).safety;
+    const details = amountChanged ? '成长后 ' + current.details + ' · 共 ' + formatProbability(current.winChance) : id === 'T11' ? '刮3步收手 ' + formatProbability(safety.slice(0, 3).reduce((a, b) => a * b, 1)) + ' · 刮满6步 ' + formatProbability(safety.reduce((a, b) => a * b, 1)) : base.details;
+    if (details)
+        p(d, details, 'ticket-odds-details');
+    scene.appendChild(d);
 }
 function slots(id) {
     const mode = cardDefinition(id).mode;
@@ -216,9 +221,7 @@ function ticketView() {
     text(83, roomy ? 284 : 287, def.name, roomy ? 78 : 54, '#fff1d5', 580, 'center', true).classList.add('ticket-name');
     text(76, roomy ? 380 : 345, '票价 ' + money(def.price) + '     基础最高 ' + money(def.headlinePrize), 20, '#fff1d5', 600, 'center').classList.add('ticket-price-line');
     text(66, roomy ? 430 : 390, def.rule, def.rule.length > 24 ? 22 : 25, C.ink, 618, 'center', true);
-    const tool = scratchTool(t.growth?.scratch ?? 0), model = growthModel(t.cardId, t.growth ?? zeroLevels());
-    const hint = text(66, roomy ? 472 : 430, (t.boost ? '本票强化：' + boostInfo(t.boost).name : def.hint) + '\n' + tool.name + ' Lv.' + (t.growth?.scratch ?? 0) + ' · 本票奖金 ×' + multiplier(model.bonusBps) + (t.boost === 'rise' ? '（翻倍后封顶3000元）' : ''), 19, '#7c715f', 618, 'center');
-    hint.style.height = '55px';
+    const tool = scratchTool(t.growth?.scratch ?? 0);
     const motif = box('ticket-motif');
     motif.style.backgroundImage = `url('./assets/ticket-${def.id.toLowerCase()}.svg')`;
     scene.appendChild(motif);
@@ -230,6 +233,7 @@ function ticketView() {
     const barcode = box('ticket-barcode');
     barcode.setAttribute('aria-hidden', 'true');
     scene.appendChild(barcode);
+    renderProbability(t.cardId, t.growth ?? zeroLevels(), t.prizeTableVersion, roomy ? 470 : 428);
     if (def.mode === 'multiply')
         text(336, 691, '×', 38, C.ink, 78, 'center', true);
     if (def.mode === 'compare')
@@ -243,8 +247,6 @@ function ticketView() {
         text(90, 530, safe === undefined ? '3次安全即中奖  ·  4枚雷 / 10格' : '公开提示：第' + (safe + 1) + '格安全 · 仍需选3格', 24, C.ink, 570, 'center', true);
     if (def.mode === 'cashout')
         text(80, 1023, '已累计 ' + money(shownAccrued) + '  ·  ' + (t.settled ? '本票已结算' : '可随时收手'), 24, C.ink, 590, 'center', true);
-    if (def.mode === 'ladder')
-        text(88, 480, '从最下层开始，每层只能选1门', 22, C.ink, 574, 'center', true);
     for (const slot of slots(t.cardId)) {
         const c = t.committedLayout[slot.index], open = t.revealed.includes(slot.index), allowed = canScratch(t, slot.index), dim = !open && !allowed;
         panel(slot.x - 5, slot.y - 5, slot.size + 10, slot.size + 10, open ? (c.kind === 'bomb' || c.kind === 'devil' ? '#e9b1a6' : '#d2dfc1') : '#e0d2b4', 18, '#c4ad7f');
@@ -296,6 +298,8 @@ function renderCatalog() {
         p(b, '票价 ' + money(def.price), 'idiom-price');
         p(b, def.rule, 'idiom-rule');
         p(b, '基础最高 ' + money(def.headlinePrize), 'idiom-prize');
+        p(b, ticketOdds(def.id).summary, 'idiom-card-odds');
+        b.title = def.name + ' · 基础' + ticketOdds(def.id).summary + ' · ' + ticketOdds(def.id).details;
         p(b, unlocked ? `本局完成 ${state.runStats[def.id]?.played ?? 0} 张 · 历史中奖 ${state.stats[def.id]?.won ?? 0} 次` : '解锁：前一卡完成3张 + 本局最高现金' + money(def.price * 2n), 'idiom-lock');
         b.addEventListener('click', () => { selected = def.id; screen = 'catalog'; notice = unlocked ? '' : '解锁条件：前一卡完成3张，本局最高现金达到 ' + money(def.price * 2n); render(); });
         grid.appendChild(b);
@@ -423,7 +427,7 @@ function renderGrowth() {
     const progression = state.progression;
     p(scroll, '永久成长', 'idiom-title');
     p(scroll, '可用 ' + progression.points + ' 福运点 · 累计获得 ' + progression.earned + ' 点', 'idiom-growth-balance');
-    p(scroll, '升级只影响新购票。普通奖池的三项增益共同受98%理论返奖上限约束，按卡种折算；单奖档不受爆率影响。', 'idiom-lock');
+    p(scroll, '升级只影响新购票。幸运与爆率会改变当前概率，卡面分别显示基础概率与成长后的实际概率；奖池增益按卡种折算。', 'idiom-lock');
     p(scroll, '奖金增益的不足1元部分，按比例随票锁定补足1元；刮开后不会重新计算。', 'idiom-lock');
     for (const tech of TECHS) {
         const row = box('idiom-tech');
@@ -552,7 +556,6 @@ function renderPreview() {
     text(83, 284, def.name, 78, '#fff1d5', 580, 'center', true).classList.add('ticket-name');
     text(76, 380, '票价 ' + money(def.price) + '     基础最高 ' + money(def.headlinePrize), 20, '#fff1d5', 600, 'center').classList.add('ticket-price-line');
     text(66, 433, def.rule, 26, '#514436', 618, 'center', true);
-    text(86, 479, def.hint, 21, '#7c715f', 580, 'center');
     const cover = panel(208, 534, 334, 334, '#b6b6ae', 16, '#96968f');
     cover.classList.add('preview-foil');
     text(209, 657, '买票后，来回刮开', 27, '#5c615e', 330, 'center', true);
@@ -563,6 +566,7 @@ function renderPreview() {
     scene.appendChild(motif);
     const barcode = box('ticket-barcode');
     scene.appendChild(barcode);
+    renderProbability(selected);
 }
 function renderQuickGrowth() {
     const side = box('idiom-quick-growth');
@@ -686,7 +690,7 @@ function renderControls() {
     controls.appendChild(footer);
     if (screen === 'ticket' && state.active) {
         const t = state.active, r = resolveTicket(t), def = cardDefinition(t.cardId);
-        p(footer, notice || r.message, 'idiom-message');
+        p(footer, notice || ((t.boost ? '本票强化：' + boostInfo(t.boost).name + ' · ' : '') + r.message), 'idiom-message');
         if (machineOwnsTicket(state))
             footer.append(actionButton('机器处理中的票 · 返回工坊', () => { screen = 'machine'; render(); }, false, 'secondary'));
         else if (t.settled && state.runBuild.pending)

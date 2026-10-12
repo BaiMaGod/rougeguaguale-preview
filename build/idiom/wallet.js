@@ -151,7 +151,7 @@ export function restoreGame(raw) {
             throw new Error('旧版票据字段无效');
         if (saved.version < 34 && t.boost)
             throw new Error('旧版票据强化无效');
-        active = createIdiomTicket(t.cardId, t.rngSeed, t.nonce, t.growth, t.boost);
+        active = createIdiomTicket(t.cardId, t.rngSeed, t.nonce, t.growth, t.boost, t.prizeTableVersion);
         if (t.prizeTableVersion !== active.prizeTableVersion || t.bonusRoll !== active.bonusRoll || t.publicSafeIndex !== active.publicSafeIndex || JSON.stringify(t.committedLayout) !== JSON.stringify(active.committedLayout))
             throw new Error('开奖数据已损坏，原存档已保留');
         if (!Array.isArray(t.revealed) || !Array.isArray(t.choices) || new Set(t.revealed).size !== t.revealed.length)
