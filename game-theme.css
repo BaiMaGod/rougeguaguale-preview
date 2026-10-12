@@ -102,12 +102,10 @@ body{background:radial-gradient(ellipse at center,#583320,#1c1613 78%)}
 @media(prefers-reduced-motion:reduce){.game-object-icon,.idiom-card,.idiom-top .idiom-btn{transition:none}}
 
 /* Printed odds belong to the ticket and stay clear of every scratch cell. */
-.idiom-ticket-stage{height:1080px}
-.ticket-odds{position:absolute;left:76px;top:1119px;width:598px;padding:7px 12px 9px;border:2px solid #b78949;border-radius:12px;background:#fff0ce;box-shadow:0 3px 0 #8d5d3780;text-align:center;color:#654122;pointer-events:none}
+.ticket-odds{position:absolute;left:76px;width:598px;padding:2px 0;text-align:center;color:#654122;pointer-events:none}
 .ticket-odds p{margin:0;line-height:1.35}
-.ticket-odds-base{font-size:26px;font-weight:850}
-.ticket-odds-details,.ticket-odds-current{font-size:21px}
-.ticket-odds-current{color:#28654b;margin-top:3px!important}
+.ticket-odds-base{font-size:22px;font-weight:850}
+.ticket-odds-details{font-size:18px}
 #game-root[data-screen='catalog'] .idiom-card .idiom-card-odds{display:block;font-size:10px;line-height:1.25;font-weight:800;color:#326348;white-space:nowrap;margin-top:2px!important}
 @media(max-height:720px){#game-root[data-screen='catalog'] .idiom-card .idiom-card-odds{font-size:9px}}
 @media(max-height:550px){#game-root[data-screen='catalog'] .idiom-card .idiom-card-odds{font-size:8px;line-height:1.1}}

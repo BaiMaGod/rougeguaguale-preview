@@ -17,7 +17,7 @@ export function ticketOdds(id:CardId,levels:Levels=zeroLevels(),version?:string)
  }else if(mode==='eye'){
   winChance=m.winChance/3;details='3选1盲选 · 本票有真眼 '+pct(m.winChance);
  }else if(mode==='ladder'){
-  winChance=(1/5)**3;details='每层5选1，连续通过3层';
+  winChance=(1/5)**3;details='从下往上，每层5选1，连续通过3层';
  }else if(mode==='destiny'){
   winChance=DESTINY_POOL.heaven;details='恶魔 '+pct(DESTINY_POOL.devil)+' · 凡间 '+pct(1-DESTINY_POOL.heaven-DESTINY_POOL.devil);
  }else if(mode==='cashout'){
