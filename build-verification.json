@@ -3,5 +3,6 @@
   "workflowRun": "https://github.com/BaiMaGod/rougeguaguale-preview/actions/runs/38259177068",
   "artifactId": 11752062330,
   "artifactSha256": "69dc81a497ff421762e98f2ae9dd9049f0d96d58baf059950b3fed1f462a5d7c",
-  "note": "Compiled build copied verbatim from the browser-verified Pages artifact; no source or gameplay changes."
+  "entry": "build/releases/amount-suspense-1-b13e1231/main.js",
+  "note": "All modules in the versioned entry directory are exact copies of the verified artifact; fresh paths prevent cached old probability code."
 }
