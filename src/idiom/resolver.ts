@@ -48,7 +48,10 @@ export function resolveBaseTicket(t:TicketInstance):Resolution {
  }
  if(!full)return play('继续刮开银层');
  switch(def.mode){
-  case 'amount':return result(values[0]>0,values[0]?'刮出现金！':'本票未中奖',BigInt(layout[0].value));
+  case 'amount':{
+   const win=values[0]===5||values[0]===10;
+   return result(win,win?'刮出现金！':'刮出 '+layout[0].value+'，仅5和10中奖',win?BigInt(layout[0].value):0n);
+  }
   case 'multiply':return result(values[0]*values[1]===21,`${values[0]} × ${values[1]} = ${values[0]*values[1]}`);
   case 'compare':return result(values[0]>values[1],`我方 ${values[0]} ${values[0]>values[1]?'>':values[0]===values[1]?'=':'<'} 对手 ${values[1]}`);
   case 'rise':return result(values[0]<values[1]&&values[1]<values[2],values.join(' → '),t.boost==='rise'?3000n:def.headlinePrize);

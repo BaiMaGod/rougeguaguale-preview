@@ -1,0 +1,224 @@
+[
+  {
+    "level": 0,
+    "ticket": {
+      "cardId": "T01",
+      "nonce": "previous:0",
+      "rngSeed": "previous-amount:0:0",
+      "prizeTableVersion": "v3.5-amount-2",
+      "committedLayout": [
+        {
+          "kind": "money",
+          "value": "0"
+        }
+      ],
+      "revealed": [],
+      "choices": [],
+      "cashout": false,
+      "settled": false
+    },
+    "prize": "0"
+  },
+  {
+    "level": 0,
+    "ticket": {
+      "cardId": "T01",
+      "nonce": "previous:2",
+      "rngSeed": "previous-amount:0:2",
+      "prizeTableVersion": "v3.5-amount-2",
+      "committedLayout": [
+        {
+          "kind": "money",
+          "value": "5"
+        }
+      ],
+      "revealed": [],
+      "choices": [],
+      "cashout": false,
+      "settled": false
+    },
+    "prize": "5"
+  },
+  {
+    "level": 0,
+    "ticket": {
+      "cardId": "T01",
+      "nonce": "previous:8",
+      "rngSeed": "previous-amount:0:8",
+      "prizeTableVersion": "v3.5-amount-2",
+      "committedLayout": [
+        {
+          "kind": "money",
+          "value": "10"
+        }
+      ],
+      "revealed": [],
+      "choices": [],
+      "cashout": false,
+      "settled": false
+    },
+    "prize": "10"
+  },
+  {
+    "level": 5,
+    "ticket": {
+      "cardId": "T01",
+      "nonce": "previous:0",
+      "rngSeed": "previous-amount:5:0",
+      "prizeTableVersion": "v3.1-growth-draft-1:v3.5-amount-2",
+      "committedLayout": [
+        {
+          "kind": "money",
+          "value": "0"
+        }
+      ],
+      "revealed": [],
+      "choices": [],
+      "cashout": false,
+      "settled": false,
+      "growth": {
+        "luck": 5,
+        "jackpot": 5,
+        "bonus": 5,
+        "scratch": 5
+      },
+      "bonusRoll": 0.8686379299033433
+    },
+    "prize": "0"
+  },
+  {
+    "level": 5,
+    "ticket": {
+      "cardId": "T01",
+      "nonce": "previous:2",
+      "rngSeed": "previous-amount:5:2",
+      "prizeTableVersion": "v3.1-growth-draft-1:v3.5-amount-2",
+      "committedLayout": [
+        {
+          "kind": "money",
+          "value": "5"
+        }
+      ],
+      "revealed": [],
+      "choices": [],
+      "cashout": false,
+      "settled": false,
+      "growth": {
+        "luck": 5,
+        "jackpot": 5,
+        "bonus": 5,
+        "scratch": 5
+      },
+      "bonusRoll": 0.6870943841058761
+    },
+    "prize": "5"
+  },
+  {
+    "level": 5,
+    "ticket": {
+      "cardId": "T01",
+      "nonce": "previous:8",
+      "rngSeed": "previous-amount:5:8",
+      "prizeTableVersion": "v3.1-growth-draft-1:v3.5-amount-2",
+      "committedLayout": [
+        {
+          "kind": "money",
+          "value": "10"
+        }
+      ],
+      "revealed": [],
+      "choices": [],
+      "cashout": false,
+      "settled": false,
+      "growth": {
+        "luck": 5,
+        "jackpot": 5,
+        "bonus": 5,
+        "scratch": 5
+      },
+      "bonusRoll": 0.3540230090729892
+    },
+    "prize": "10"
+  },
+  {
+    "level": 10,
+    "ticket": {
+      "cardId": "T01",
+      "nonce": "previous:0",
+      "rngSeed": "previous-amount:10:0",
+      "prizeTableVersion": "v3.1-growth-draft-1:v3.5-amount-2",
+      "committedLayout": [
+        {
+          "kind": "money",
+          "value": "10"
+        }
+      ],
+      "revealed": [],
+      "choices": [],
+      "cashout": false,
+      "settled": false,
+      "growth": {
+        "luck": 10,
+        "jackpot": 10,
+        "bonus": 10,
+        "scratch": 10
+      },
+      "bonusRoll": 0.5180207164958119
+    },
+    "prize": "11"
+  },
+  {
+    "level": 10,
+    "ticket": {
+      "cardId": "T01",
+      "nonce": "previous:2",
+      "rngSeed": "previous-amount:10:2",
+      "prizeTableVersion": "v3.1-growth-draft-1:v3.5-amount-2",
+      "committedLayout": [
+        {
+          "kind": "money",
+          "value": "0"
+        }
+      ],
+      "revealed": [],
+      "choices": [],
+      "cashout": false,
+      "settled": false,
+      "growth": {
+        "luck": 10,
+        "jackpot": 10,
+        "bonus": 10,
+        "scratch": 10
+      },
+      "bonusRoll": 0.5774587851483375
+    },
+    "prize": "0"
+  },
+  {
+    "level": 10,
+    "ticket": {
+      "cardId": "T01",
+      "nonce": "previous:6",
+      "rngSeed": "previous-amount:10:6",
+      "prizeTableVersion": "v3.1-growth-draft-1:v3.5-amount-2",
+      "committedLayout": [
+        {
+          "kind": "money",
+          "value": "5"
+        }
+      ],
+      "revealed": [],
+      "choices": [],
+      "cashout": false,
+      "settled": false,
+      "growth": {
+        "luck": 10,
+        "jackpot": 10,
+        "bonus": 10,
+        "scratch": 10
+      },
+      "bonusRoll": 0.8835813766345382
+    },
+    "prize": "5"
+  }
+]

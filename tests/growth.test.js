@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CARDS,DESTINY_POOL,AMOUNT_POOL_VERSION} from '../build/idiom/config.js';
+import {CARDS,DESTINY_POOL,AMOUNT_POOL_VERSION,AMOUNT_SUSPENSE_VERSION} from '../build/idiom/config.js';
 import {createIdiomTicket} from '../build/idiom/generator.js';
 import {resolveTicket,resolveBaseTicket,revealCell,cashOut} from '../build/idiom/resolver.js';
 import {newGame,purchaseTicket,upgradeTech,settleActive,serializeGame,restoreGame,loadGame,SAVE_KEY} from '../build/idiom/wallet.js';
@@ -69,7 +69,7 @@ test('升级中途不影响旧票金额、布局、工具；新票获得新科�
  const t=s.active;for(const tech of TECHS)s=upgradeTech(s,tech);
  assert.equal(s.active,t);assert.deepEqual(restoreGame(serializeGame(s)).active,t);
  s=settleActive({...s,active:finish(t)});const next=purchaseTicket(s,'T01');
- assert.equal(next.active.prizeTableVersion,GROWTH_VERSION+':'+AMOUNT_POOL_VERSION);assert.deepEqual(next.active.growth,{luck:1,jackpot:1,bonus:1,scratch:1});
+ assert.equal(next.active.prizeTableVersion,GROWTH_VERSION+':'+AMOUNT_POOL_VERSION+':'+AMOUNT_SUSPENSE_VERSION);assert.deepEqual(next.active.growth,{luck:1,jackpot:1,bonus:1,scratch:1});
 });
 test('V3.1旧存档完整迁移并补领，保留原始备份和待刮票',()=>{
  const t=createIdiomTicket('T01','migration','legacy');const s={...newGame('legacy'),version:31,bought:4,active:t,stats:{T01:{played:3,won:1,best:10n}},unlockedCount:2,peak:1000n};

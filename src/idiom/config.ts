@@ -6,7 +6,7 @@ export interface CardDefinition {
   prizeTableVersion: string;
 }
 const rows: [string,string,bigint,bigint,Mode,string,string,string,number][] = [
- ['T01','一五一十',2n,10n,'amount','刮出5得5元，刮出10得10元','在大银层上来回刮擦','#e5b46f',1],
+ ['T01','一五一十',2n,10n,'amount','仅5和10中奖，其他数字无奖','在大银层上来回刮擦','#e5b46f',1],
  ['T02','两全其美',10n,30n,'pair','3格中任意两个相同图案即中奖','任意顺序刮开，配对只领一次','#f4aa9b',3],
  ['T03','三七二十一',30n,120n,'multiply','两个数字相乘等于21即中奖','刮开左右数字，自动显示乘积','#a6ccbb',2],
  ['T04','一较高下',100n,500n,'compare','我方数字大于对手数字即中奖','相同数字不中奖','#a9bbeb',2],
@@ -26,7 +26,7 @@ const rows: [string,string,bigint,bigint,Mode,string,string,string,number][] = [
  ['T18','一念天堂',10000000000n,1000000000000n,'destiny','选1门：天堂得1万亿，恶魔清空本局现金','凡间无奖；永久科技与历史图鉴保留','#eeaa83',3],
 ];
 export const CARDS: readonly CardDefinition[] = rows.map(([id,name,price,headlinePrize,mode,rule,hint,color,cells]) =>
- Object.freeze({id:id as CardId,name,price,headlinePrize,mode,rule,hint,color,cells,automationAllowedByDefault:id!=='T18',prizeTableVersion:id==='T01'?'v3.5-amount-2':'v3.1-base-draft-1'}));
+ Object.freeze({id:id as CardId,name,price,headlinePrize,mode,rule,hint,color,cells,automationAllowedByDefault:id!=='T18',prizeTableVersion:id==='T01'?'v3.5-amount-2:amount-suspense-1':'v3.1-base-draft-1'}));
 export function cardDefinition(id:string): CardDefinition {
  const card=CARDS.find(c=>c.id===id);if(!card)throw new Error('未知卡种：'+id);return card;
 }
@@ -44,6 +44,8 @@ export const BASE_WIN_CHANCE:Readonly<Record<string,number>>=Object.freeze({
  T02:.28,T03:.21,T04:.17,T05:.17,T06:.17,T07:.15,T08:.17,T10:.17,T12:.08,T15:.04,T16:.04,
 });
 export const AMOUNT_POOL_VERSION='v3.5-amount-2';
+export const AMOUNT_SUSPENSE_VERSION='amount-suspense-1';
+export const AMOUNT_DECOYS=Object.freeze([50,100,500]);
 export const LEGACY_AMOUNT_POOL=Object.freeze([{chance:.22,prize:5n},{chance:.07,prize:10n}]);
 export const AMOUNT_POOL=Object.freeze([{chance:.20,prize:5n},{chance:.10,prize:10n}]);
 export function amountPool(version?:string):typeof AMOUNT_POOL {

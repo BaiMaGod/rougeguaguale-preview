@@ -54,6 +54,12 @@ async function exercise(b,profile){
   for(let row=0,y=box.y+box.height*.12;y<box.y+box.height*.9;y+=step,row++){await page.mouse.move(box.x+box.width*(row%2?.9:.1),y);await page.mouse.move(box.x+box.width*(row%2?.1:.9),y);}await page.mouse.up();
  }
  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).active.revealed.length===1);
+ const scratched=await page.evaluate(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).active.committedLayout[0]);
+ if(['50','100','500'].includes(scratched.value)){
+  assert.equal(scratched.kind,'number');
+  assert.equal(await page.getByRole('button',{name:/^领取 /}).count(),0,'Decoy numbers must never offer a prize');
+  assert.ok((await page.locator('.idiom-footer').innerText()).includes('仅5和10中奖'));
+ }
  assert.ok(Number(await page.locator('#foil-particles').getAttribute('data-emissions'))>0);
  if(await page.getByRole('button',{name:/^领取 /}).isVisible())await page.getByRole('button',{name:/^领取 /}).click();
  assert.equal(await page.locator('#game-root').getAttribute('data-settled'),'true');

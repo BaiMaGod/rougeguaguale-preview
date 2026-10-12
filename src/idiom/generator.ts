@@ -1,4 +1,4 @@
-import {cardDefinition,BASE_WIN_CHANCE,amountPool,AMOUNT_POOL_VERSION,CASHOUT_SAFETY,CASHOUT_REWARDS,DRAGON_EYE_TICKET_CHANCE,LEDGER_POOL,DESTINY_POOL,type CardId} from './config.js';
+import {cardDefinition,BASE_WIN_CHANCE,amountPool,AMOUNT_POOL_VERSION,AMOUNT_SUSPENSE_VERSION,AMOUNT_DECOYS,CASHOUT_SAFETY,CASHOUT_REWARDS,DRAGON_EYE_TICKET_CHANCE,LEDGER_POOL,DESTINY_POOL,type CardId} from './config.js';
 import {growthModel,readLevels,GROWTH_VERSION,type Levels} from './growth.js';
 import {validBoost,RUN_BOOST_VERSION,type BoostId} from './run-build.js';
 import {seededRandom} from './random.js';
@@ -17,6 +17,7 @@ export function createIdiomTicket(cardId:CardId,seed:string,nonce:string,growth?
  const def=cardDefinition(cardId),rng=seededRandom(seed);
  const levels=growth?readLevels(growth):undefined,model=levels?growthModel(cardId,levels,version):undefined;
  const pool=amountPool(version),legacyAmount=cardId==='T01'&&!!version&&!version.includes(AMOUNT_POOL_VERSION);
+ const suspenseAmount=cardId==='T01'&&(!version||version.includes(AMOUNT_SUSPENSE_VERSION));
  const wins=()=>rng()<(model?.winChance??BASE_WIN_CHANCE[cardId]);
  const int=(min:number,max:number)=>min+Math.floor(rng()*(max-min+1));
  const cell=(kind:TicketCell['kind'],value:string|number|bigint):TicketCell=>({kind,value:String(value)});
@@ -24,7 +25,8 @@ export function createIdiomTicket(cardId:CardId,seed:string,nonce:string,growth?
  const numbers=(values:number[])=>values.map(n=>cell('number',n));
  switch(def.mode){
   case 'amount':{const r=rng();const prize=model?(r<model.winChance?(r/model.winChance<model.tiers[0]?5n:10n):0n):r<pool[0].chance?pool[0].prize:r<pool[0].chance+pool[1].chance?pool[1].prize:0n;
-   layout=[cell('money',prize)];break;}
+   // Decoys use an independent draw, preserving the winning roll and bonus roll.
+   layout=[prize===0n&&suspenseAmount?cell('number',AMOUNT_DECOYS[Math.floor(seededRandom(seed+':amount-decoy')()*AMOUNT_DECOYS.length)]):cell('money',prize)];break;}
   case 'pair':{const a=int(0,3),b=(a+int(1,3))%4,c=(b+1)%4;
    const icons=['福','玉','花','果'];const win=wins();
    const vals=win?[a,a,b]:[a,b,c===a?(c+1)%4:c];
@@ -68,6 +70,7 @@ export function createIdiomTicket(cardId:CardId,seed:string,nonce:string,growth?
  if(boost==='lucky')layout[0]={...layout[0],value:String(Number(layout[0].value)+2)};
  const safeIndices=boost==='hint'?layout.flatMap((c,i)=>c.kind==='safe'?[i]:[]):[];
  const publicSafeIndex=boost==='hint'?safeIndices[Math.floor(seededRandom(seed+':public-safe')()*safeIndices.length)]:undefined;
- const table=levels?GROWTH_VERSION+(cardId==='T01'&&!legacyAmount?':'+AMOUNT_POOL_VERSION:''):legacyAmount?'v3.1-base-draft-1':def.prizeTableVersion;
+ const amountVersion=AMOUNT_POOL_VERSION+(suspenseAmount?':'+AMOUNT_SUSPENSE_VERSION:'');
+ const table=levels?GROWTH_VERSION+(cardId==='T01'&&!legacyAmount?':'+amountVersion:''):legacyAmount?'v3.1-base-draft-1':cardId==='T01'?amountVersion:def.prizeTableVersion;
  return {cardId,nonce,rngSeed:seed,prizeTableVersion:(boost?RUN_BOOST_VERSION+':':'')+table,committedLayout:layout,revealed:[],choices:[],cashout:false,settled:false,...(levels?{growth:levels,bonusRoll:rng()}:{}),...(boost?{boost}:{}),...(publicSafeIndex!==undefined?{publicSafeIndex}:{})};
 }

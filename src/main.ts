@@ -99,9 +99,10 @@ function renderProbability(id:CardId,levels=state.progression.levels,version?:st
  const base=ticketOdds(id,zeroLevels(),version),current=ticketOdds(id,levels,version),d=box('ticket-odds');
  d.dataset.cardId=id;
  d.style.top=y+'px';
- p(d,'基础'+base.summary+(Math.abs(current.winChance-base.winChance)>1e-10?' · 成长后'+current.summary:''),'ticket-odds-base');
+ const amountChanged=id==='T01'&&current.details!==base.details;
+ p(d,amountChanged?'基础'+base.summary+' · '+base.details:'基础'+base.summary+(Math.abs(current.winChance-base.winChance)>1e-10?' · 成长后'+current.summary:''),'ticket-odds-base');
  const safety=growthModel(id,zeroLevels(),version).safety;
- const details=id==='T11'?'刮3步收手 '+formatProbability(safety.slice(0,3).reduce((a,b)=>a*b,1))+' · 刮满6步 '+formatProbability(safety.reduce((a,b)=>a*b,1)):base.details;
+ const details=amountChanged?'成长后 '+current.details+' · 共 '+formatProbability(current.winChance):id==='T11'?'刮3步收手 '+formatProbability(safety.slice(0,3).reduce((a,b)=>a*b,1))+' · 刮满6步 '+formatProbability(safety.reduce((a,b)=>a*b,1)):base.details;
  if(details)p(d,details,'ticket-odds-details');
  scene!.appendChild(d);
 }
