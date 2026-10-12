@@ -66,7 +66,20 @@ async function exercise(b,profile){
  await page.screenshot({path:resolve(out,profile.name+'-result.png')});
  await page.getByRole('button',{name:/再买一张/}).click();assert.equal(await page.locator('#game-root').getAttribute('data-settled'),'false');assert.equal(await page.locator('canvas[data-index]').count(),1);
  const priorCash=await page.locator('#game-root').getAttribute('data-cash');await page.reload();await page.waitForFunction(()=>document.querySelector('#game-root')?.dataset.screen==='ticket');assert.equal(await page.locator('#game-root').getAttribute('data-cash'),priorCash);
- for(const [name,button] of [['growth','永久成长'],['machine','自动机器'],['records','刮奖记录']]){await page.getByRole('button',{name:button,exact:true}).click();await page.screenshot({path:resolve(out,profile.name+'-'+name+'.png')});assert.equal(await page.locator('.idiom-catalog').evaluate(e=>e.scrollWidth<=e.clientWidth+1),true);}
+ for(const [name,button] of [['growth','永久成长'],['machine','自动机器'],['records','刮奖记录']]){
+  await page.getByRole('button',{name:button,exact:true}).click();
+  if(name==='growth'){
+   await page.locator('[data-upgrade="jackpot"]').click();
+   const levels=await page.evaluate(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).progression.levels);
+   assert.equal(levels.jackpot,1);
+   await page.getByRole('button',{name:'成语卡册',exact:true}).click();
+   assert.ok((await page.locator('.ticket-odds-base').textContent()).includes('5元 20% · 10元 10%'));
+   assert.ok((await page.locator('.ticket-odds-details').textContent()).includes('成长后 '+ticketOdds('T01',levels).details));
+   await page.screenshot({path:resolve(out,profile.name+'-grown-odds.png')});
+   await page.getByRole('button',{name:button,exact:true}).click();
+  }
+  await page.screenshot({path:resolve(out,profile.name+'-'+name+'.png')});assert.equal(await page.locator('.idiom-catalog').evaluate(e=>e.scrollWidth<=e.clientWidth+1),true);
+ }
  const nav=await page.locator('.idiom-top').boundingBox(),footer=await page.locator('.idiom-footer').boundingBox();assert.ok(footer.y+footer.height<=nav.y+1||footer.y>=nav.y+nav.height-1,'Footer must not obstruct navigation');
  const p95=await page.evaluate(()=>new Promise(ok=>{let last=performance.now();const times=[];function sample(t){times.push(t-last);last=t;if(times.length<180)requestAnimationFrame(sample);else ok(times.sort((a,b)=>a-b)[Math.floor(times.length*.95)]);}requestAnimationFrame(sample);}));assert.ok(p95<40,'Frame p95 '+p95+'ms exceeds budget');
  results.push({profile:profile.name,portrait:true,frame:{width:frame.width,height:frame.height},renderer:await page.locator('#game-root').getAttribute('data-renderer'),purchase:true,realScratch:true,settlement:true,replay:true,reload:true,assets:true,p95});

@@ -253,7 +253,7 @@ function renderGrowth():void {
  growthTabs(scroll);
  const progression=state.progression;
  p(scroll,'永久成长','idiom-title');p(scroll,'可用 '+progression.points+' 福运点 · 累计获得 '+progression.earned+' 点','idiom-growth-balance');
- p(scroll,'升级只影响新购票。普通奖池的三项增益共同受98%理论返奖上限约束，按卡种折算；单奖档不受爆率影响。','idiom-lock');
+ p(scroll,'升级只影响新购票。幸运与爆率会改变当前概率，卡面分别显示基础概率与成长后的实际概率；奖池增益按卡种折算。','idiom-lock');
  p(scroll,'奖金增益的不足1元部分，按比例随票锁定补足1元；刮开后不会重新计算。','idiom-lock');
  for(const tech of TECHS){
   const row=box('idiom-tech');row.dataset.tech=tech;const level=progression.levels[tech],info=TECH_INFO[tech];
