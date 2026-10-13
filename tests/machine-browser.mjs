@@ -20,8 +20,8 @@ const click=name=>page.locator(`[data-machine-action="${name}"]`).click();
 async function shot(name){await page.locator('.idiom-catalog').evaluate(e=>e.scrollTop=0);await page.screenshot({path:resolve(evidence,name+'.jpg'),type:'jpeg',quality:85});}
 try{
  await page.goto(url);await ready();await install({...newGame('ui-machine'),cash:1000n,peak:1000n,unlockedCount:18});
- await page.getByRole('button',{name:'自动机器',exact:true}).click();await page.getByRole('button',{name:'购买初级机 · 20元',exact:true}).click();
- assert.equal((await saved()).cash,'980');await page.getByRole('button',{name:'升级到中级机 · 30元',exact:true}).click();assert.equal((await saved()).cash,'950');
+ await page.getByRole('button',{name:'自动机器',exact:true}).click();await page.getByRole('button',{name:'购买初级机 · 20钱币',exact:true}).click();
+ assert.equal((await saved()).cash,'980');await page.getByRole('button',{name:'升级到中级机 · 30钱币',exact:true}).click();assert.equal((await saved()).cash,'950');
  assert.equal(await page.locator('select[name=card] option').count(),17);assert.equal(await page.locator('select[name=card] option[value=T18]').count(),0);checks.push('Purchase/upgrade fees and T18 safety lock');
  await page.locator('[name=autoBuy]').check();await page.locator('[name=autoClaim]').check();await page.locator('[name=reserve]').fill('20');await page.locator('[name=budget]').fill('6');await page.locator('[name=limit]').fill('3');await page.locator('[name=quantity]').fill('2');
  await click('enqueue');assert.equal((await saved()).machine.queue.length,2);await click('start');
@@ -62,8 +62,8 @@ try{
   s=configureMachine(s,{autoBuy:false,autoClaim:true,repeatCard:'T16',policy:defaultPolicy(),reserve:0n,budget:10000000n,limit:1});s=advanceMachine(startMachine(enqueueMachine(s,'T16')),100);
   let t=s.active;for(const n of [0,1,2])t=revealCell(t,n);if(resolveTicket(t).status==='won'){jackpot=s;break;}}
  await install(jackpot);await click('start');await page.waitForFunction(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).machine.processed===1);
- assert.match(await page.locator('.machine-jackpot').textContent(),/三心二亿 · 2亿元/);await page.reload();await ready();await page.getByRole('button',{name:'自动机器',exact:true}).click();
- assert.match(await page.locator('.machine-jackpot').textContent(),/三心二亿 · 2亿元/);await shot('machine-jackpot');checks.push('Auto claimed jackpot remains prominent and survives reload');
+ assert.match(await page.locator('.machine-jackpot').textContent(),/三心二亿 · 2亿钱币/);await page.reload();await ready();await page.getByRole('button',{name:'自动机器',exact:true}).click();
+ assert.match(await page.locator('.machine-jackpot').textContent(),/三心二亿 · 2亿钱币/);await shot('machine-jackpot');checks.push('Auto claimed jackpot remains prominent and survives reload');
  for(const view of [{width:360,height:640},{width:844,height:390},{width:1280,height:900}]){
   await page.setViewportSize(view);const b=await page.locator('#game-root').boundingBox();assert.ok(b.x>=-1&&b.y>=-1&&b.x+b.width<=view.width+1&&b.y+b.height<=view.height+1);
   const nav=await page.locator('.idiom-top').boundingBox();assert.ok(nav.width<=b.width);await shot('machine-'+view.width+'x'+view.height);

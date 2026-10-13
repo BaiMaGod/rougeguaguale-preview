@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {readFile,mkdir} from 'node:fs/promises';
 import {resolve,extname} from 'node:path';
-import {CARDS} from '../build/idiom/config.js';
+import {CARDS} from '../build/releases/coins-a5f1cf35/idiom/config.js';
 import {createIdiomTicket} from '../build/idiom/generator.js';
 import {resolveTicket,revealCell,cashOut} from '../build/idiom/resolver.js';
 import {newGame,serializeGame,SAVE_KEY} from '../build/idiom/wallet.js';
@@ -81,7 +81,7 @@ try{
    await gallery.screenshot({path:resolve(evidence,name+'.jpg'),type:'jpeg',quality:80});
  }
  await gallery.close();
- await page.getByRole('button',{name:'买 一五一十 · 2元',exact:true}).click();
+ await page.getByRole('button',{name:'买 一五一十 · 2钱币',exact:true}).click();
  assert.equal(await page.locator('#game-root').getAttribute('data-cash'),'58');assert.equal(await page.locator('canvas[data-index]').count(),1);
  await shot('mobile-first-ticket');await scratch(0);
  assert.equal(await page.locator('#foil-particles').getAttribute('data-emissions')==='0',false);checks.push('Real touch scratching, silver dust and purchase deduction');
@@ -147,7 +147,7 @@ try{
  assert.equal(await page.locator('#game-root').getAttribute('data-cash'),'0');assert.equal(await page.locator('#game-root').getAttribute('data-status'),'bankrupt');
  const navBox=await page.locator('.idiom-top').boundingBox(),footerBox=await page.locator('.idiom-footer').boundingBox();
  assert.ok(footerBox.y+footerBox.height<=navBox.y+1||footerBox.y>=navBox.y+navBox.height-1,'Bankruptcy footer covers navigation');
- await shot('mobile-bankrupt');await page.getByRole('button',{name:/领取20元恢复金/}).click();assert.equal(await page.locator('#game-root').getAttribute('data-cash'),'20');checks.push('T18 bankruptcy then recovery');
+ await shot('mobile-bankrupt');await page.getByRole('button',{name:/领取20钱币恢复金/}).click();assert.equal(await page.locator('#game-root').getAttribute('data-cash'),'20');checks.push('T18 bankruptcy then recovery');
  await install(newGame('viewport'));
  for(const view of [{width:360,height:640},{width:844,height:390},{width:1280,height:900}]){
   await page.setViewportSize(view);await page.waitForTimeout(100);const b=await page.locator('#game-root').boundingBox();

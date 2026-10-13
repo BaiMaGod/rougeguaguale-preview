@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {resolve,extname} from 'node:path';
-import {CARDS} from '../build/idiom/config.js';
-import {ticketOdds} from '../build/idiom/probability.js';
+import {CARDS} from '../build/releases/coins-a5f1cf35/idiom/config.js';
+import {ticketOdds} from '../build/releases/coins-a5f1cf35/idiom/probability.js';
 const base=resolve('.'),out=resolve('qa-evidence/art-v35');await mkdir(out,{recursive:true});
 const mime={'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.webp':'image/webp'};
 const server=createServer(async(req,res)=>{try{let path=resolve(base,'.'+new URL(req.url,'http://localhost').pathname);if(path===base)path=resolve(base,'index.html');assert.ok(path.startsWith(base+'/'));res.setHeader('Content-Type',mime[extname(path)]??'application/octet-stream');res.end(await readFile(path));}catch{res.statusCode=404;res.end('Not found');}});
@@ -30,7 +30,7 @@ async function exercise(b,profile){
   assert.ok(panel.x>=table.x-1&&panel.y>=table.y-1&&panel.x+panel.width<=table.x+table.width+1&&panel.y+panel.height<=table.y+table.height+1,card.id+' odds must fit the worktable');
  }
  await page.locator('.idiom-card[data-card-id="T01"]').click();
- assert.equal(await page.locator('.ticket-odds-details').textContent(),'5元 20% · 10元 10%');
+ assert.equal(await page.locator('.ticket-odds-details').textContent(),'5钱币 20% · 10钱币 10%');
  const resourceValuesClear=await page.locator('.idiom-resource').evaluateAll(elements=>elements.every(e=>{
   const icon=getComputedStyle(e,'::before');if(icon.display==='none')return true;
   const r=e.getBoundingClientRect(),value=e.querySelector('.idiom-resource-value').getBoundingClientRect();
@@ -39,7 +39,7 @@ async function exercise(b,profile){
  if(profile.fallback)assert.equal(await page.locator('#game-root').getAttribute('data-renderer'),'canvas2d');
  const art=await page.evaluate(async()=>Promise.all(['scratch-shop-v35.webp','ornate-ticket-v35.webp','desk-objects-v35.webp','ticket-vignette-v34.webp'].map(n=>new Promise(ok=>{const i=new Image();i.onload=()=>ok(i.naturalWidth>0);i.onerror=()=>ok(false);i.src='./assets/'+n;}))));assert.deepEqual(art,[true,true,true,true]);
  await page.screenshot({path:resolve(out,profile.name+'-catalog.png')});
- await page.getByRole('button',{name:'买 一五一十 · 2元',exact:true}).click();assert.equal(await page.locator('#game-root').getAttribute('data-cash'),'58');
+ await page.getByRole('button',{name:'买 一五一十 · 2钱币',exact:true}).click();assert.equal(await page.locator('#game-root').getAttribute('data-cash'),'58');
  const foil=page.locator('canvas[data-index="0"]'),box=await foil.boundingBox();assert.ok(box&&box.width>60,'Foil remains usable');
  if(profile.name==='tablet')assert.ok(box.width>200,'Portrait tablet must give the central scratch area enough space');
  assert.equal(await foil.evaluate(e=>e.getRootNode().querySelector('.idiom-ticket-stage').contains(e)),true);
@@ -73,7 +73,7 @@ async function exercise(b,profile){
    const levels=await page.evaluate(()=>JSON.parse(localStorage.getItem('idiom-run-v31-base')).progression.levels);
    assert.equal(levels.jackpot,1);
    await page.getByRole('button',{name:'成语卡册',exact:true}).click();
-   assert.ok((await page.locator('.ticket-odds-base').textContent()).includes('5元 20% · 10元 10%'));
+   assert.ok((await page.locator('.ticket-odds-base').textContent()).includes('5钱币 20% · 10钱币 10%'));
    assert.ok((await page.locator('.ticket-odds-details').textContent()).includes('成长后 '+ticketOdds('T01',levels).details));
    await page.screenshot({path:resolve(out,profile.name+'-grown-odds.png')});
    await page.getByRole('button',{name:button,exact:true}).click();
